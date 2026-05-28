@@ -126,8 +126,10 @@ def ifta_summary(
         start = datetime(year, sm, 1)
         end = datetime(year, em, 30, 23, 59, 59)
         query = query.filter(
-            models.Load.pickup_date >= start,
-            models.Load.pickup_date <= end,
+            or_(
+                models.Load.pickup_date == None,
+                (models.Load.pickup_date >= start) & (models.Load.pickup_date <= end),
+            )
         )
 
     loads = query.all()
