@@ -16,6 +16,7 @@
 
 ## Düşük Öncelik
 
+- [ ] Mobil uyumluluk — responsive UI, şoför telefon erişimi (filo büyüyünce öncelikli)
 - [ ] IFTA mileage summary — state bazlı mil özeti, quarterly dosyalama
 - [ ] Dashboard PTI count auto-refresh — sayfa yenilenmeden canlı güncelleme
 - [ ] Truck status değişince renk tag canlı güncelleme
