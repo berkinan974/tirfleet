@@ -1,24 +1,30 @@
 # TIR Fleet TMS — Backlog
 
-## Kısa / Kolay
+## Tamamlandı ✅
 
-- [ ] Load auto-numbering — load oluşturulunca L-001 formatı otomatik atansın, elle girme
-- [ ] PTI /today endpoint photo_count döndürsün — history cross-reference kaldırılsın
-- [ ] Driver edit modalına license_expiry date picker ekle
-- [ ] Truck edit modalında status değişince renk tag'i canlı güncellensin
+- [x] Load auto-numbering — L-001 formatı otomatik atanıyor
+- [x] PTI /today endpoint photo_count döndürüyor
+- [x] Driver edit modalına license_expiry date picker eklendi
+- [x] Maintenance log — truck başına servis geçmişi, Fleet UI'da
+- [x] Load belgesi ekleme — BOL / rate confirmation PDF upload
+- [x] Loads sayfasına arama / filtre — broker, lane, load# arama kutusu
+- [x] Sunucu deploy — 5.161.61.221 VPS, nginx + systemd, 7/24 aktif
+- [x] Rate confirmation otomatik parse — PDF'den origin/dest/rate/miles çekiyor
 
-## Orta / Bir oturum
+## Beklemede / Sonraki Oturum
 
-- [ ] IFTA mileage summary — loads'dan toplam mil + state bazlı özet, quarterly dosyalama için
-- [ ] Maintenance log — truck başına servis geçmişi (yağ, lastik, fren), compliance reminder'a bağlı
-- [ ] Load belgesi ekleme — rate confirmation / BOL PDF yükleme, loads tablosundan erişim
-- [ ] Dashboard'da PTI count canlı güncelle — sayfa yenilenmeden auto-refresh
-- [ ] Loads sayfasına arama / filtre — broker, status, tarih aralığı
+- [ ] DAT load board API entegrasyonu
+      → developer.dat.com'dan API erişimi almak gerekiyor (başvuru + abonelik)
+      → Filo 3+ TIR olunca öncelikli hale gelir
+      → Backend + frontend skeleton hazırlanabilir, credentials gelince bağlanır
 
-## Büyük / Çok oturum
-
-- [ ] Sunucu deploy — 24/7 erişim için VPS'e taşı (nginx + systemd)
-- [ ] DAT load board gerçek API entegrasyonu
 - [ ] HOS / ELD entegrasyonu — driver hours (TTLD API)
-- [ ] Rate confirmation otomatik parse — PDF'den origin/destination/rate çek
+      → ELD donanımı da gerekiyor, saf yazılım değil
+
 - [ ] Multi-tenant — birden fazla fleet şirketi desteği
+
+## Düşük Öncelik
+
+- [ ] IFTA mileage summary — state bazlı mil özeti, quarterly dosyalama
+- [ ] Dashboard'da PTI count canlı güncelle — auto-refresh (polling)
+- [ ] Truck status değişince renk tag canlı güncelle
