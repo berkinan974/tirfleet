@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy
+python-telegram-bot
+streamlit
+python-dotenv
+aiofiles
+pandas
+httpx

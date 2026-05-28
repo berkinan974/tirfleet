@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TIR Dispatch — Fleet Manager + Driver Bot</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="tokens.css" />
+  <style>
+    html, body { margin: 0; padding: 0; background: #d8d6cf; height: 100%; }
+    body { font-family: "JetBrains Mono", monospace; }
+  </style>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="ios-frame.jsx"></script>
+  <script type="text/babel" src="dashboard-chrome.jsx"></script>
+  <script type="text/babel" src="screen-overview.jsx"></script>
+  <script type="text/babel" src="screen-pti.jsx"></script>
+  <script type="text/babel" src="screen-loads.jsx"></script>
+  <script type="text/babel" src="screen-fleet.jsx"></script>
+  <script type="text/babel" src="screen-bot.jsx"></script>
+
+  <script type="text/babel">
+    const { DesignCanvas, DCSection, DCArtboard } = window;
+
+    const App = () => (
+      <DesignCanvas>
+        <DCSection
+          id="dispatch"
+          title="Fleet Manager · Dispatch Console"
+          subtitle="Industrial dispatch UI · 1440×900 · JetBrains Mono + Oswald · amber-on-black"
+        >
+          <DCArtboard id="overview" label="01 · Overview"            width={1440} height={900}>
+            <OverviewScreen />
+          </DCArtboard>
+          <DCArtboard id="pti"      label="02 · PTI Inspection"       width={1440} height={900}>
+            <PTIScreen />
+          </DCArtboard>
+          <DCArtboard id="loads"    label="03 · Loads / Dispatch"     width={1440} height={900}>
+            <LoadsScreen />
+          </DCArtboard>
+          <DCArtboard id="fleet"    label="04 · Fleet Roster"         width={1440} height={900}>
+            <FleetScreen />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection
+          id="bot"
+          title="Driver Bot · @TIR_PTI_BOT"
+          subtitle="Mobile · Telegram conversation flow for drivers · PTI submission + status checks"
+        >
+          <DCArtboard id="bot-start"   label="A · /start"          width={400} height={860}>
+            <IOSDevice dark title=" ">
+              <BotScreenStart />
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="bot-upload"  label="B · Uploading PTI"   width={400} height={860}>
+            <IOSDevice dark title=" ">
+              <BotScreenUpload />
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="bot-done"    label="C · PTI Confirmed"   width={400} height={860}>
+            <IOSDevice dark title=" ">
+              <BotScreenDone />
+            </IOSDevice>
+          </DCArtboard>
+          <DCArtboard id="bot-status"  label="D · Status + Nudge"  width={400} height={860}>
+            <IOSDevice dark title=" ">
+              <BotScreenStatus />
+            </IOSDevice>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+    );
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
