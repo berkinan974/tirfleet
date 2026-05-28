@@ -33,6 +33,12 @@ export const createMaintenance = (data) => api.post('/maintenance/', data).then(
 export const updateMaintenance = (id, data) => api.patch(`/maintenance/${id}`, data).then(r => r.data)
 export const deleteMaintenance = (id) => api.delete(`/maintenance/${id}`).then(r => r.data)
 
+export const parseRateConfirmation = (file) => {
+  const fd = new FormData()
+  fd.append('file', file)
+  return api.post('/loads/parse-rc', fd).then(r => r.data)
+}
+
 export const getDocuments = (loadId) => api.get(`/loads/${loadId}/documents`).then(r => r.data)
 export const uploadDocument = (loadId, file, docType) => {
   const fd = new FormData()

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary, getDocuments, uploadDocument, deleteDocument } from '../api'
+import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary, getDocuments, uploadDocument, deleteDocument, parseRateConfirmation } from '../api'
 import { useState, useRef } from 'react'
 import Ticker from '../components/Ticker'
 
@@ -22,7 +22,12 @@ export default function Loads() {
   const [showForm, setShowForm] = useState(false)
   const [docsLoad, setDocsLoad] = useState(null)
   const [docType, setDocType] = useState('bol')
+  const [showRC, setShowRC] = useState(false)
+  const [rcParsing, setRcParsing] = useState(false)
+  const [rcData, setRcData] = useState(null)
+  const [rcRaw, setRcRaw] = useState('')
   const fileInputRef = useRef(null)
+  const rcInputRef = useRef(null)
   const [form, setForm] = useState({ truck_id: '', origin: '', destination: '', broker_name: '', rate: '', miles: '', load_number: '', dat_reference: '', eta: '' })
 
   const { data: loadsAll = [] } = useQuery({ queryKey: ['loads', ''], queryFn: () => getLoads('') })
@@ -131,7 +136,13 @@ export default function Loads() {
         <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', overflow: 'hidden' }}>
           <div className="panel-head" style={{ padding: '10px 16px' }}>
             <span>· LOAD BOARD · {loadsAll.length} RECORDS</span>
-            <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowForm(true)}>+ NEW LOAD</span>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <span style={{ cursor: 'pointer', color: 'var(--ink-mute)', fontFamily: 'var(--mono)', fontSize: 10 }}
+                onClick={() => { setRcData(null); setRcRaw(''); setShowRC(true) }}>
+                ▸ PARSE RC
+              </span>
+              <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowForm(true)}>+ NEW LOAD</span>
+            </div>
           </div>
 
           {/* Filter chips + search */}
@@ -273,6 +284,145 @@ export default function Loads() {
           </div>
         </div>
       </div>
+
+      {/* RC Parser Modal */}
+      {showRC && (
+        <div style={{ position: 'fixed', inset: 0, background: '#000000cc', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', padding: 24, width: 620, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+              <span className="t-tiny t-up t-dim">· RATE CONFIRMATION PARSER</span>
+              <button onClick={() => setShowRC(false)} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
+            </div>
+
+            {/* Step 1: Upload */}
+            {!rcData && (
+              <div>
+                <div style={{ padding: '24px 0', textAlign: 'center', border: '1px dashed var(--line-strong)', marginBottom: 16 }}>
+                  <div className="t-tiny t-up t-mute" style={{ marginBottom: 12 }}>DROP RATE CONFIRMATION PDF</div>
+                  <input ref={rcInputRef} type="file" accept=".pdf" style={{ display: 'none' }}
+                    onChange={async e => {
+                      const file = e.target.files[0]
+                      if (!file) return
+                      setRcParsing(true)
+                      try {
+                        const res = await parseRateConfirmation(file)
+                        setRcData(res.parsed)
+                        setRcRaw(res.raw_preview || '')
+                      } catch (err) {
+                        alert('PDF parse hatası: ' + (err.response?.data?.detail || err.message))
+                      } finally {
+                        setRcParsing(false)
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                  <button className="btn primary" style={{ padding: '8px 24px' }} onClick={() => rcInputRef.current?.click()} disabled={rcParsing}>
+                    {rcParsing ? '⟳ PARSING...' : '▸ SELECT PDF'}
+                  </button>
+                </div>
+                <div className="t-tiny t-mute" style={{ fontSize: 10 }}>
+                  Echo Global, Coyote, CH Robinson, Convoy ve diğer broker formatları desteklenir.
+                  Bulunamayan alanları manuel girebilirsin.
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Review & confirm */}
+            {rcData && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span style={{ fontSize: 11, color: 'var(--green)' }}>
+                    ✓ {Object.keys(rcData).length} ALAN BULUNDU — KONTROL ET
+                  </span>
+                  <span onClick={() => { setRcData(null); setRcRaw('') }} style={{ fontSize: 10, color: 'var(--ink-mute)', cursor: 'pointer', fontFamily: 'var(--mono)' }}>
+                    ↺ YENİDEN YÜKLE
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    ['load_number', 'Load #'],
+                    ['broker_name', 'Broker'],
+                    ['origin', 'Origin *'],
+                    ['destination', 'Destination *'],
+                    ['rate', 'Rate ($)'],
+                    ['miles', 'Miles'],
+                    ['pickup_date', 'Pickup Date'],
+                    ['delivery_date', 'Delivery Date'],
+                    ['dat_reference', 'DAT Ref'],
+                  ].map(([key, label]) => (
+                    <div key={key}>
+                      <div className="t-tiny t-up t-mute" style={{ marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{label}</span>
+                        {rcData[key] != null && <span style={{ color: 'var(--green)' }}>✓</span>}
+                      </div>
+                      <input
+                        value={rcData[key] ?? ''}
+                        onChange={e => setRcData(d => ({ ...d, [key]: e.target.value }))}
+                        style={inputStyle}
+                        placeholder={rcData[key] == null ? '— not found' : ''}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Truck *</div>
+                    <select
+                      value={rcData.truck_id || ''}
+                      onChange={e => setRcData(d => ({ ...d, truck_id: e.target.value }))}
+                      style={inputStyle}
+                    >
+                      <option value="">— SELECT TRUCK —</option>
+                      {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}{t.driver ? ` · ${t.driver}` : ''}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* RPM preview */}
+                {rcData.rate && rcData.miles && parseFloat(rcData.miles) > 0 && (
+                  <div style={{ padding: '8px 10px', background: 'var(--bg-elev)', border: '1px solid var(--line)', fontSize: 11, marginTop: 10 }}>
+                    <span className="t-mute">$/MI: </span>
+                    <span style={{ color: (parseFloat(rcData.rate) / parseFloat(rcData.miles)) >= 4 ? 'var(--green)' : 'var(--amber)' }}>
+                      ${(parseFloat(rcData.rate) / parseFloat(rcData.miles)).toFixed(2)}
+                    </span>
+                    <span className="t-mute" style={{ marginLeft: 16 }}>Rate: </span>
+                    <span style={{ color: 'var(--green)' }}>${parseFloat(rcData.rate).toLocaleString()}</span>
+                  </div>
+                )}
+
+                <button
+                  className="btn primary"
+                  style={{ marginTop: 16, width: '100%', justifyContent: 'center', padding: 10 }}
+                  disabled={!rcData.origin || !rcData.destination || !rcData.truck_id}
+                  onClick={() => {
+                    createMut.mutate({
+                      truck_id: parseInt(rcData.truck_id),
+                      origin: rcData.origin,
+                      destination: rcData.destination,
+                      broker_name: rcData.broker_name || '',
+                      rate: parseFloat(rcData.rate) || 0,
+                      miles: parseFloat(rcData.miles) || 0,
+                      load_number: rcData.load_number || '',
+                      dat_reference: rcData.dat_reference || '',
+                      eta: '',
+                    })
+                    setShowRC(false)
+                    setRcData(null)
+                  }}
+                >
+                  ▸ CREATE LOAD FROM RC
+                </button>
+
+                {/* Raw text preview (collapsible) */}
+                {rcRaw && (
+                  <details style={{ marginTop: 12 }}>
+                    <summary style={{ fontSize: 10, color: 'var(--ink-mute)', cursor: 'pointer', fontFamily: 'var(--mono)' }}>RAW TEXT PREVIEW</summary>
+                    <pre style={{ fontSize: 9, color: 'var(--ink-mute)', marginTop: 8, whiteSpace: 'pre-wrap', maxHeight: 150, overflow: 'auto', background: 'var(--bg)', padding: 8 }}>{rcRaw}</pre>
+                  </details>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Docs Modal */}
       {docsLoad && (

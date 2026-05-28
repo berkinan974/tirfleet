@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from backend.database import engine
 from backend import models
-from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents
+from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser
 import os
 
 models.Base.metadata.create_all(bind=engine)
@@ -47,6 +47,7 @@ app.include_router(loads.router)
 app.include_router(factoring.router)
 app.include_router(maintenance.router)
 app.include_router(documents.router)
+app.include_router(rc_parser.router)
 
 media_dir = os.path.abspath("./media")
 os.makedirs(media_dir, exist_ok=True)
