@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getTrucks, getDrivers, createTruck, createDriver, updateTruck, updateDriver } from '../api'
+import { getTrucks, getDrivers, createTruck, createDriver, updateTruck, updateDriver, getMaintenance, createMaintenance, deleteMaintenance } from '../api'
 import { useState } from 'react'
 import Ticker from '../components/Ticker'
 
@@ -16,15 +16,20 @@ export default function Fleet() {
   const [editTruck, setEditTruck] = useState(null)
   const [editDriver, setEditDriver] = useState(null)
   const [truckForm, setTruckForm] = useState({ unit_number: '', plate: '', make: '', model: '', year: '2020', vin: '', odometer: '' })
-  const [driverForm, setDriverForm] = useState({ name: '', phone: '', telegram_id: '', license_number: '', truck_id: '' })
+  const [driverForm, setDriverForm] = useState({ name: '', phone: '', telegram_id: '', license_number: '', license_expiry: '', truck_id: '' })
+  const [maintForm, setMaintForm] = useState({ truck_id: '', date: '', type: 'oil_change', description: '', cost: '', mileage: '', vendor: '' })
+  const [showMaintForm, setShowMaintForm] = useState(false)
 
   const { data: trucks = [] } = useQuery({ queryKey: ['trucks'], queryFn: getTrucks })
   const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers })
+  const { data: maintenance = [] } = useQuery({ queryKey: ['maintenance'], queryFn: () => getMaintenance() })
 
   const createTruckMut = useMutation({ mutationFn: createTruck, onSuccess: () => { qc.invalidateQueries(['trucks']); setShowTruckForm(false); setTruckForm({ unit_number: '', plate: '', make: '', model: '', year: '2020', vin: '', odometer: '' }) } })
-  const createDriverMut = useMutation({ mutationFn: createDriver, onSuccess: () => { qc.invalidateQueries(['drivers']); setShowDriverForm(false); setDriverForm({ name: '', phone: '', telegram_id: '', license_number: '', truck_id: '' }) } })
+  const createDriverMut = useMutation({ mutationFn: createDriver, onSuccess: () => { qc.invalidateQueries(['drivers']); setShowDriverForm(false); setDriverForm({ name: '', phone: '', telegram_id: '', license_number: '', license_expiry: '', truck_id: '' }) } })
   const updateTruckMut = useMutation({ mutationFn: ({ id, data }) => updateTruck(id, data), onSuccess: () => { qc.invalidateQueries(['trucks']); setEditTruck(null) } })
   const updateDriverMut = useMutation({ mutationFn: ({ id, data }) => updateDriver(id, data), onSuccess: () => { qc.invalidateQueries(['drivers']); setEditDriver(null) } })
+  const createMaintMut = useMutation({ mutationFn: createMaintenance, onSuccess: () => { qc.invalidateQueries(['maintenance']); setShowMaintForm(false); setMaintForm({ truck_id: '', date: '', type: 'oil_change', description: '', cost: '', mileage: '', vendor: '' }) } })
+  const deleteMaintMut = useMutation({ mutationFn: deleteMaintenance, onSuccess: () => qc.invalidateQueries(['maintenance']) })
 
   const truckMap = Object.fromEntries(trucks.map(t => [t.id, t.unit_number]))
   const active = trucks.filter(t => t.status === 'active').length
@@ -186,45 +191,48 @@ export default function Fleet() {
           </div>
         </div>
 
-        {/* COMPLIANCE / INFO */}
+        {/* MAINTENANCE LOG */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="panel-head" style={{ padding: '10px 16px' }}>
-            <span>· COMPLIANCE</span>
-            <span className="ph-r">REMINDERS</span>
+            <span>· MAINTENANCE LOG · {maintenance.length} RECORDS</span>
+            <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowMaintForm(true)}>+ LOG SERVICE</span>
           </div>
           <div style={{ flex: 1, overflow: 'auto' }}>
-            {[
-              { d: 'DAILY',   task: 'PTI — MIN 4 PHOTOS',       unit: 'ALL DRIVERS', tone: 'amber' },
-              { d: 'WEEKLY',  task: 'LOAD BOARD CHECK · DAT',    unit: 'DISPATCH',    tone: '' },
-              { d: 'MONTHLY', task: 'IFTA MILEAGE LOG REVIEW',   unit: 'FLEET MGR',   tone: '' },
-              { d: 'QUARTER', task: 'DOT INSPECTION VERIFY',     unit: 'ALL TRUCKS',  tone: 'amber' },
-              { d: 'ANNUAL',  task: 'CDL RENEWAL CHECK',         unit: 'ALL DRIVERS', tone: '' },
-              { d: 'ANNUAL',  task: 'INSURANCE POLICY REVIEW',   unit: 'OWNER',       tone: '' },
-            ].map((c, i) => (
-              <div key={i} style={{
-                padding: '14px 16px', borderBottom: '1px solid var(--line)',
-                display: 'grid', gridTemplateColumns: '64px 1fr', gap: 12, alignItems: 'center',
-                borderLeft: c.tone === 'red' ? '2px solid var(--red)' : c.tone === 'amber' ? '2px solid var(--amber)' : '2px solid transparent',
-              }}>
-                <div>
-                  <div className="t-display" style={{ fontSize: 11, color: c.tone === 'amber' ? 'var(--amber)' : c.tone === 'red' ? 'var(--red)' : 'var(--ink)' }}>{c.d}</div>
+            {maintenance.length === 0 ? (
+              <div style={{ padding: 16, color: 'var(--ink-mute)', fontSize: 11 }}>NO SERVICE RECORDS</div>
+            ) : maintenance.map((m, i) => {
+              const truckUnit = trucks.find(t => t.id === m.truck_id)?.unit_number || `#${m.truck_id}`
+              const statusColor = m.status === 'completed' ? 'var(--green)' : m.status === 'in_progress' ? 'var(--amber)' : 'var(--ink-mute)'
+              const typeLabel = { oil_change: 'OIL', tire: 'TIRE', brake: 'BRAKE', inspection: 'INSP', other: 'OTHER' }[m.type] || m.type.toUpperCase()
+              return (
+                <div key={m.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--line)', display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 10, alignItems: 'start' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div className="tag" style={{ fontSize: 9, padding: '2px 4px' }}>{typeLabel}</div>
+                    <div className="t-display" style={{ fontSize: 13, color: 'var(--amber)', marginTop: 4 }}>{truckUnit}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--ink)' }}>{m.description || typeLabel}</div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 3 }}>
+                      <span className="t-tiny t-mute">{m.date}</span>
+                      {m.vendor && <span className="t-tiny t-dim">{m.vendor}</span>}
+                      {m.mileage && <span className="t-tiny t-mute">{m.mileage.toLocaleString()} MI</span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    {m.cost ? <div style={{ fontSize: 11, color: 'var(--green)' }}>${m.cost.toLocaleString()}</div> : null}
+                    <div className="t-tiny" style={{ color: statusColor, marginTop: 2 }}>{m.status?.toUpperCase()}</div>
+                    <span onClick={() => deleteMaintMut.mutate(m.id)} style={{ fontSize: 9, color: 'var(--ink-mute)', cursor: 'pointer', marginTop: 4, display: 'block' }}>✕</span>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 11, color: 'var(--ink)' }}>{c.task}</div>
-                  <div className="t-tiny t-mute" style={{ marginTop: 2 }}>{c.unit}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
           <div style={{ borderTop: '1px solid var(--line)', padding: 14, background: 'var(--bg-elev)', flexShrink: 0 }}>
-            <div className="t-tiny t-up t-mute" style={{ marginBottom: 8 }}>INSURANCE · ACTIVE</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, fontSize: 11 }}>
+            <div className="t-tiny t-up t-mute" style={{ marginBottom: 6 }}>INSURANCE · ACTIVE</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 11 }}>
               <span className="t-mute">Carrier</span>     <span className="t-dim">Progressive Commercial</span>
               <span className="t-mute">Policy</span>      <span className="t-dim">C-44821</span>
-              <span className="t-mute">Premium / mo</span><span className="t-dim">$4,820</span>
-              <span className="t-mute">Liability</span>   <span className="t-dim">$1,000,000</span>
-              <span className="t-mute">Cargo</span>       <span className="t-dim">$300,000</span>
-              <span className="t-mute">Expires</span>     <span style={{ color: 'var(--amber)', fontSize: 11, fontFamily: 'var(--mono)' }}>2026.12.31</span>
+              <span className="t-mute">Expires</span>     <span style={{ color: 'var(--amber)', fontFamily: 'var(--mono)' }}>2026.12.31</span>
             </div>
           </div>
         </div>
@@ -317,6 +325,10 @@ export default function Fleet() {
                 <input value={editDriver[key] || ''} onChange={e => setEditDriver(d => ({ ...d, [key]: e.target.value }))} style={inputStyle} />
               </div>
             ))}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>CDL Expiry Date</div>
+              <input type="date" value={editDriver.license_expiry ? editDriver.license_expiry.slice(0,10) : ''} onChange={e => setEditDriver(d => ({ ...d, license_expiry: e.target.value }))} style={inputStyle} />
+            </div>
             <div style={{ gridColumn: '1 / -1' }}>
               <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Assign Truck</div>
               <select value={editDriver.truck_id || ''} onChange={e => setEditDriver(d => ({ ...d, truck_id: e.target.value }))} style={selectStyle}>
@@ -325,9 +337,48 @@ export default function Fleet() {
               </select>
             </div>
           </div>
-          <button onClick={() => updateDriverMut.mutate({ id: editDriver.id, data: { name: editDriver.name, phone: editDriver.phone, telegram_id: editDriver.telegram_id, license_number: editDriver.license_number, truck_id: editDriver.truck_id ? parseInt(editDriver.truck_id) : null } })}
+          <button onClick={() => updateDriverMut.mutate({ id: editDriver.id, data: { name: editDriver.name, phone: editDriver.phone, telegram_id: editDriver.telegram_id, license_number: editDriver.license_number, license_expiry: editDriver.license_expiry || null, truck_id: editDriver.truck_id ? parseInt(editDriver.truck_id) : null } })}
             className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
             ▸ SAVE CHANGES
+          </button>
+        </FormModal>
+      )}
+
+      {/* MAINTENANCE FORM MODAL */}
+      {showMaintForm && (
+        <FormModal title="· LOG SERVICE ENTRY" onClose={() => setShowMaintForm(false)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Truck *</div>
+              <select value={maintForm.truck_id} onChange={e => setMaintForm(f => ({ ...f, truck_id: e.target.value }))} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '7px 10px', fontFamily: 'var(--mono)', fontSize: 12, boxSizing: 'border-box' }}>
+                <option value="">— SELECT TRUCK —</option>
+                {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}</option>)}
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Type *</div>
+              <select value={maintForm.type} onChange={e => setMaintForm(f => ({ ...f, type: e.target.value }))} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '7px 10px', fontFamily: 'var(--mono)', fontSize: 12, boxSizing: 'border-box' }}>
+                <option value="oil_change">OIL CHANGE</option>
+                <option value="tire">TIRE</option>
+                <option value="brake">BRAKE</option>
+                <option value="inspection">INSPECTION</option>
+                <option value="other">OTHER</option>
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Date *</div>
+              <input type="date" value={maintForm.date} onChange={e => setMaintForm(f => ({ ...f, date: e.target.value }))} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '7px 10px', fontFamily: 'var(--mono)', fontSize: 12, boxSizing: 'border-box' }} />
+            </div>
+            {[['description','Description'], ['vendor','Vendor / Shop'], ['cost','Cost ($)'], ['mileage','Mileage (MI)']].map(([key, label]) => (
+              <div key={key}>
+                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
+                <input value={maintForm[key]} onChange={e => setMaintForm(f => ({ ...f, [key]: e.target.value }))} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '7px 10px', fontFamily: 'var(--mono)', fontSize: 12, boxSizing: 'border-box' }} />
+              </div>
+            ))}
+          </div>
+          <button onClick={() => createMaintMut.mutate({ ...maintForm, truck_id: parseInt(maintForm.truck_id), cost: parseFloat(maintForm.cost) || null, mileage: parseInt(maintForm.mileage) || null })}
+            className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
+            ▸ SAVE SERVICE RECORD
           </button>
         </FormModal>
       )}

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from backend.database import get_db
 from backend import models
 from pydantic import BaseModel
@@ -38,10 +39,22 @@ class LoadUpdate(BaseModel):
 
 
 @router.get("/")
-def list_loads(status: Optional[models.LoadStatus] = None, db: Session = Depends(get_db)):
+def list_loads(
+    status: Optional[models.LoadStatus] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     query = db.query(models.Load)
     if status:
         query = query.filter(models.Load.status == status)
+    if search:
+        q = f"%{search}%"
+        query = query.filter(or_(
+            models.Load.origin.ilike(q),
+            models.Load.destination.ilike(q),
+            models.Load.broker_name.ilike(q),
+            models.Load.load_number.ilike(q),
+        ))
     return query.order_by(models.Load.created_at.desc()).all()
 
 
@@ -51,6 +64,9 @@ def create_load(load: LoadCreate, db: Session = Depends(get_db)):
     if not truck:
         raise HTTPException(status_code=404, detail="Tır bulunamadı")
     db_load = models.Load(**load.model_dump())
+    if not db_load.load_number:
+        count = db.query(models.Load).count()
+        db_load.load_number = f"L-{count + 1:03d}"
     db.add(db_load)
     db.commit()
     db.refresh(db_load)

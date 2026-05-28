@@ -29,12 +29,19 @@ def get_today_pti(db: Session = Depends(get_db)):
             models.PTIRecord.driver_id == driver.id,
             models.PTIRecord.date == today
         ).first()
+        photo_count = 0
+        if pti and pti.media_paths:
+            try:
+                photo_count = len(json.loads(pti.media_paths))
+            except Exception:
+                pass
         result.append({
             "driver_id": driver.id,
             "driver_name": driver.name,
             "truck": driver.truck.unit_number if driver.truck else None,
             "submitted": pti is not None,
             "submitted_at": pti.submitted_at.isoformat() if pti else None,
+            "photo_count": photo_count,
         })
     return result
 

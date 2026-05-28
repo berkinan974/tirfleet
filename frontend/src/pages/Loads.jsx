@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary } from '../api'
-import { useState } from 'react'
+import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary, getDocuments, uploadDocument, deleteDocument } from '../api'
+import { useState, useRef } from 'react'
 import Ticker from '../components/Ticker'
 
 const STATE_MAP = {
@@ -18,16 +18,28 @@ function StateTag({ status }) {
 export default function Loads() {
   const qc = useQueryClient()
   const [filter, setFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [docsLoad, setDocsLoad] = useState(null)
+  const [docType, setDocType] = useState('bol')
+  const fileInputRef = useRef(null)
   const [form, setForm] = useState({ truck_id: '', origin: '', destination: '', broker_name: '', rate: '', miles: '', load_number: '', dat_reference: '', eta: '' })
 
   const { data: loadsAll = [] } = useQuery({ queryKey: ['loads', ''], queryFn: () => getLoads('') })
   const { data: trucks = [] } = useQuery({ queryKey: ['trucks'], queryFn: getTrucks })
   const { data: summary = {} } = useQuery({ queryKey: ['loadSummary'], queryFn: getLoadSummary })
 
-  const loads = filter
-    ? loadsAll.filter(l => l.status === filter)
-    : loadsAll
+  const loads = loadsAll.filter(l => {
+    if (filter && l.status !== filter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      return (l.origin || '').toLowerCase().includes(q) ||
+        (l.destination || '').toLowerCase().includes(q) ||
+        (l.broker_name || '').toLowerCase().includes(q) ||
+        (l.load_number || '').toLowerCase().includes(q)
+    }
+    return true
+  })
 
   const createMut = useMutation({
     mutationFn: createLoad,
@@ -41,6 +53,19 @@ export default function Loads() {
   const updateMut = useMutation({
     mutationFn: ({ id, data }) => updateLoad(id, data),
     onSuccess: () => { qc.invalidateQueries(['loads']); qc.invalidateQueries(['loadSummary']) }
+  })
+  const uploadMut = useMutation({
+    mutationFn: ({ loadId, file, docType }) => uploadDocument(loadId, file, docType),
+    onSuccess: () => qc.invalidateQueries(['docs', docsLoad?.id])
+  })
+  const deleteDocMut = useMutation({
+    mutationFn: ({ loadId, docId }) => deleteDocument(loadId, docId),
+    onSuccess: () => qc.invalidateQueries(['docs', docsLoad?.id])
+  })
+  const { data: docs = [] } = useQuery({
+    queryKey: ['docs', docsLoad?.id],
+    queryFn: () => getDocuments(docsLoad.id),
+    enabled: !!docsLoad,
   })
 
   // Build truck map: id → {unit_number, driver}
@@ -109,8 +134,8 @@ export default function Loads() {
             <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowForm(true)}>+ NEW LOAD</span>
           </div>
 
-          {/* Filter chips */}
-          <div style={{ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)', flexShrink: 0 }}>
+          {/* Filter chips + search */}
+          <div style={{ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)', flexShrink: 0, alignItems: 'center' }}>
             {[
               ['',           `ALL · ${loadsAll.length}`],
               ['pending',    `BOOKED · ${pending}`],
@@ -122,6 +147,12 @@ export default function Loads() {
                 className={`tag ${filter === val ? 'amber' : ''}`}
                 style={{ cursor: 'pointer' }}>{label}</span>
             ))}
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="SEARCH BROKER / LANE / LOAD#"
+              style={{ marginLeft: 'auto', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '4px 10px', fontFamily: 'var(--mono)', fontSize: 10, width: 220 }}
+            />
           </div>
 
           <div style={{ flex: 1, overflow: 'auto' }}>
@@ -142,6 +173,7 @@ export default function Loads() {
                     <th>ETA</th>
                     <th>Status</th>
                     <th>Action</th>
+                    <th>Docs</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -178,6 +210,9 @@ export default function Loads() {
                             <option value="delivered">DELIV</option>
                             <option value="cancelled">CANCEL</option>
                           </select>
+                        </td>
+                        <td>
+                          <span onClick={() => setDocsLoad(l)} style={{ fontSize: 10, color: 'var(--amber)', cursor: 'pointer', fontFamily: 'var(--mono)' }}>DOCS</span>
                         </td>
                       </tr>
                     )
@@ -238,6 +273,50 @@ export default function Loads() {
           </div>
         </div>
       </div>
+
+      {/* Docs Modal */}
+      {docsLoad && (
+        <div style={{ position: 'fixed', inset: 0, background: '#000000bb', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', padding: 24, width: 480 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+              <span className="t-tiny t-up t-dim">· DOCUMENTS — {docsLoad.load_number || `L-${docsLoad.id}`}</span>
+              <button onClick={() => setDocsLoad(null)} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
+            </div>
+            {/* Document list */}
+            {docs.length === 0 ? (
+              <div style={{ color: 'var(--ink-mute)', fontSize: 11, marginBottom: 16 }}>NO DOCUMENTS ATTACHED</div>
+            ) : (
+              <div style={{ marginBottom: 16 }}>
+                {docs.map(d => (
+                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--line)', fontSize: 11 }}>
+                    <div>
+                      <span className="tag" style={{ fontSize: 9, marginRight: 8 }}>{d.doc_type?.toUpperCase()}</span>
+                      <span className="t-dim">{d.filename}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <a href={`/api/${d.file_path}`} target="_blank" rel="noreferrer" style={{ color: 'var(--amber)', fontSize: 10, fontFamily: 'var(--mono)' }}>OPEN</a>
+                      <span onClick={() => deleteDocMut.mutate({ loadId: docsLoad.id, docId: d.id })} style={{ color: 'var(--ink-mute)', cursor: 'pointer', fontSize: 10 }}>✕</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Upload form */}
+            <div className="t-tiny t-up t-mute" style={{ marginBottom: 8 }}>UPLOAD DOCUMENT</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <select value={docType} onChange={e => setDocType(e.target.value)} style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '6px 8px', fontFamily: 'var(--mono)', fontSize: 11 }}>
+                <option value="bol">BOL</option>
+                <option value="rate_confirmation">RATE CONF</option>
+                <option value="other">OTHER</option>
+              </select>
+              <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) uploadMut.mutate({ loadId: docsLoad.id, file: e.target.files[0], docType }); e.target.value = '' }} />
+              <button className="btn primary" style={{ flex: 1, justifyContent: 'center', padding: '6px 0' }} onClick={() => fileInputRef.current?.click()}>
+                {uploadMut.isPending ? 'UPLOADING...' : '▸ CHOOSE FILE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Load Modal */}
       {showForm && (

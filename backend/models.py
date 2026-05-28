@@ -36,6 +36,7 @@ class Truck(Base):
     driver = relationship("Driver", back_populates="truck", uselist=False)
     pti_records = relationship("PTIRecord", back_populates="truck")
     loads = relationship("Load", back_populates="truck")
+    maintenance_logs = relationship("MaintenanceLog", back_populates="truck")
 
 
 class Driver(Base):
@@ -93,6 +94,7 @@ class Load(Base):
 
     truck = relationship("Truck", back_populates="loads")
     factoring = relationship("FactoringRecord", back_populates="load", uselist=False)
+    documents = relationship("LoadDocument", back_populates="load")
 
 
 class FactoringRecord(Base):
@@ -110,3 +112,33 @@ class FactoringRecord(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     load = relationship("Load", back_populates="factoring")
+
+
+class MaintenanceLog(Base):
+    __tablename__ = "maintenance_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    truck_id = Column(Integer, ForeignKey("trucks.id"), nullable=False)
+    date = Column(String, nullable=False)
+    type = Column(String, nullable=False)  # oil_change, tire, brake, inspection, other
+    description = Column(Text)
+    cost = Column(Float)
+    mileage = Column(Integer)
+    vendor = Column(String)
+    status = Column(String, default="open")  # open, in_progress, completed
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    truck = relationship("Truck", back_populates="maintenance_logs")
+
+
+class LoadDocument(Base):
+    __tablename__ = "load_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    load_id = Column(Integer, ForeignKey("loads.id"), nullable=False)
+    filename = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    doc_type = Column(String, default="other")  # bol, rate_confirmation, other
+    uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    load = relationship("Load", back_populates="documents")
