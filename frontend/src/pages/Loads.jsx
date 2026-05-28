@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary, getDocuments, uploadDocument, deleteDocument, parseRateConfirmation } from '../api'
+import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary, getDocuments, uploadDocument, deleteDocument, parseRateConfirmation, getDatStatus, searchDatLoads, getDatRates } from '../api'
 import { useState, useRef } from 'react'
 import Ticker from '../components/Ticker'
 
@@ -22,6 +22,12 @@ export default function Loads() {
   const [showForm, setShowForm] = useState(false)
   const [docsLoad, setDocsLoad] = useState(null)
   const [docType, setDocType] = useState('bol')
+  const [datOrigin, setDatOrigin] = useState('')
+  const [datDest, setDatDest] = useState('')
+  const [datEquip, setDatEquip] = useState('Van')
+  const [datResults, setDatResults] = useState(null)
+  const [datRates, setDatRates] = useState(null)
+  const [datLoading, setDatLoading] = useState(false)
   const [showRC, setShowRC] = useState(false)
   const [rcParsing, setRcParsing] = useState(false)
   const [rcData, setRcData] = useState(null)
@@ -269,17 +275,124 @@ export default function Loads() {
             </div>
           </div>
 
-          {/* DAT Board placeholder */}
-          <div style={{ flex: 1, overflow: 'auto' }}>
+          {/* DAT Board */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div className="panel-head" style={{ padding: '10px 16px' }}>
               <span>· DAT BOARD</span>
-              <span className="ph-r" style={{ color: 'var(--ink-mute)' }}>CONNECT API</span>
+              <span className="ph-r" style={{ color: 'var(--ink-mute)', fontSize: 9 }}>MOCK MODE · ADD CREDENTIALS TO ACTIVATE</span>
             </div>
-            <div style={{ padding: '12px 16px' }}>
-              <span className="t-mute" style={{ fontSize: 11 }}>DAT API integration pending.</span>
-              <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                <button className="btn" style={{ flex: 1, fontSize: 10 }} onClick={() => window.open('https://dat.com', '_blank')}>▸ OPEN DAT PORTAL</button>
+
+            {/* Search form */}
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)', flexShrink: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 72px', gap: 6, marginBottom: 6 }}>
+                <input value={datOrigin} onChange={e => setDatOrigin(e.target.value)} placeholder="Origin  e.g. Dallas, TX"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '5px 8px', fontFamily: 'var(--mono)', fontSize: 10 }} />
+                <input value={datDest} onChange={e => setDatDest(e.target.value)} placeholder="Dest  e.g. Chicago, IL"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '5px 8px', fontFamily: 'var(--mono)', fontSize: 10 }} />
+                <select value={datEquip} onChange={e => setDatEquip(e.target.value)}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '5px 4px', fontFamily: 'var(--mono)', fontSize: 10 }}>
+                  <option>Van</option>
+                  <option>Reefer</option>
+                  <option>Flatbed</option>
+                </select>
               </div>
+              <button className="btn primary" style={{ width: '100%', justifyContent: 'center', padding: '5px 0', fontSize: 10 }}
+                disabled={!datOrigin || !datDest || datLoading}
+                onClick={async () => {
+                  setDatLoading(true)
+                  setDatResults(null)
+                  setDatRates(null)
+                  try {
+                    const [loads, rates] = await Promise.all([
+                      searchDatLoads(datOrigin, datDest, datEquip),
+                      getDatRates(datOrigin, datDest, datEquip),
+                    ])
+                    setDatResults(loads.loads || [])
+                    setDatRates(rates)
+                  } catch (e) {
+                    setDatResults([])
+                  } finally {
+                    setDatLoading(false)
+                  }
+                }}>
+                {datLoading ? '⟳ SEARCHING...' : '▸ SEARCH LOADS'}
+              </button>
+            </div>
+
+            {/* Rate summary */}
+            {datRates && (
+              <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--line)', background: 'var(--bg)', flexShrink: 0 }}>
+                <div className="t-tiny t-up t-mute" style={{ marginBottom: 5 }}>
+                  MARKET RATE · {datRates.lane}
+                  {datRates.mock && <span style={{ color: 'var(--amber)', marginLeft: 6 }}>MOCK</span>}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
+                  {[
+                    ['LOW',  `$${datRates.rate_low?.toFixed(2)}/MI`,  'var(--red)'],
+                    ['AVG',  `$${datRates.rate_avg?.toFixed(2)}/MI`,  'var(--amber)'],
+                    ['HIGH', `$${datRates.rate_high?.toFixed(2)}/MI`, 'var(--green)'],
+                    ['VOL',  `${datRates.volume_index}/100`,          'var(--ink)'],
+                  ].map(([label, val, color]) => (
+                    <div key={label} style={{ textAlign: 'center', padding: '4px 0', borderRight: '1px solid var(--line)' }}>
+                      <div className="t-tiny t-mute">{label}</div>
+                      <div style={{ fontSize: 11, color, fontFamily: 'var(--mono)', marginTop: 2 }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 4, fontSize: 9, color: datRates.trend === 'up' ? 'var(--green)' : 'var(--red)' }}>
+                  {datRates.trend === 'up' ? '▲' : '▼'} {datRates.trend_pct}% vs last week · {datRates.sample_size} loads sampled
+                </div>
+              </div>
+            )}
+
+            {/* Load results */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              {!datResults && !datLoading && (
+                <div style={{ padding: 14, color: 'var(--ink-mute)', fontSize: 10 }}>ENTER ORIGIN + DESTINATION TO SEARCH</div>
+              )}
+              {datResults && datResults.length === 0 && (
+                <div style={{ padding: 14, color: 'var(--ink-mute)', fontSize: 10 }}>NO LOADS FOUND FOR THIS LANE</div>
+              )}
+              {datResults && datResults.map((load, i) => {
+                const rpm = load.rate_per_mile
+                const rpmColor = rpm >= 3.5 ? 'var(--green)' : rpm >= 3.0 ? 'var(--amber)' : 'var(--red)'
+                return (
+                  <div key={load.id || i} style={{ padding: '10px 14px', borderBottom: '1px solid var(--line)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--ink)' }}>{load.broker?.name}</div>
+                        <div style={{ display: 'flex', gap: 6, marginTop: 3, alignItems: 'center' }}>
+                          <span className="t-tiny t-mute">MC {load.broker?.mc}</span>
+                          {load.broker?.credit && <span className="tag green" style={{ fontSize: 8, padding: '1px 4px' }}>{load.broker.credit}</span>}
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 10, color: 'var(--ink-dim)' }}>
+                          {load.pickup_date} · {load.weight?.toLocaleString()} lbs · {load.commodity}
+                        </div>
+                        <div style={{ marginTop: 2, fontSize: 9, color: 'var(--ink-mute)' }}>
+                          REF: {load.reference} · Posted {load.posted_age_min}m ago
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontSize: 14, color: 'var(--green)', fontFamily: 'var(--mono)' }}>${load.rate?.toLocaleString()}</div>
+                        <div style={{ fontSize: 10, color: rpmColor, marginTop: 2 }}>${rpm?.toFixed(2)}/MI</div>
+                        <div style={{ fontSize: 9, color: 'var(--ink-mute)', marginTop: 2 }}>{load.miles} mi</div>
+                        <button className="btn" style={{ marginTop: 6, fontSize: 9, padding: '3px 8px', color: 'var(--amber)' }}
+                          onClick={() => createMut.mutate({
+                            truck_id: trucks[0]?.id,
+                            origin: `${load.origin?.city}, ${load.origin?.state}`,
+                            destination: `${load.destination?.city}, ${load.destination?.state}`,
+                            broker_name: load.broker?.name,
+                            rate: load.rate,
+                            miles: load.miles,
+                            dat_reference: load.reference,
+                          })}>
+                          + IMPORT
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>

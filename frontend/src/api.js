@@ -48,6 +48,12 @@ export const uploadDocument = (loadId, file, docType) => {
 }
 export const deleteDocument = (loadId, docId) => api.delete(`/loads/${loadId}/documents/${docId}`).then(r => r.data)
 
+export const getDatStatus = () => api.get('/dat/status').then(r => r.data)
+export const searchDatLoads = (origin, destination, equipment = 'Van') =>
+  api.get('/dat/loads', { params: { origin, destination, equipment } }).then(r => r.data)
+export const getDatRates = (origin, destination, equipment = 'Van') =>
+  api.get('/dat/rates', { params: { origin, destination, equipment } }).then(r => r.data)
+
 export const getFactoring = () => api.get('/factoring/').then(r => r.data)
 export const getFactoringSummary = () => api.get('/factoring/summary').then(r => r.data)
 export const getUninvoicedLoads = () => api.get('/factoring/uninvoiced').then(r => r.data)
