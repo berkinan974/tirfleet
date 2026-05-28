@@ -20,11 +20,33 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE trucks ADD COLUMN vin VARCHAR",
         "ALTER TABLE trucks ADD COLUMN odometer INTEGER DEFAULT 0",
         "ALTER TABLE loads ADD COLUMN eta VARCHAR",
+        # Multi-tenant: add company_id to all tables
+        "ALTER TABLE users ADD COLUMN company_id INTEGER",
+        "ALTER TABLE trucks ADD COLUMN company_id INTEGER",
+        "ALTER TABLE drivers ADD COLUMN company_id INTEGER",
+        "ALTER TABLE loads ADD COLUMN company_id INTEGER",
+        "ALTER TABLE pti_records ADD COLUMN company_id INTEGER",
+        "ALTER TABLE factoring_records ADD COLUMN company_id INTEGER",
+        "ALTER TABLE maintenance_logs ADD COLUMN company_id INTEGER",
     ]
     with engine.connect() as conn:
         for sql in migrations:
             try:
                 conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                pass
+
+        # Seed default company if none exist, then assign all orphan records
+        row = conn.execute(text("SELECT id FROM companies LIMIT 1")).fetchone()
+        if not row:
+            conn.execute(text("INSERT INTO companies (name, is_active) VALUES ('TIR Fleet', 1)"))
+            conn.commit()
+            row = conn.execute(text("SELECT id FROM companies LIMIT 1")).fetchone()
+        cid = row[0]
+        for tbl in ["users", "trucks", "drivers", "loads", "pti_records", "factoring_records", "maintenance_logs"]:
+            try:
+                conn.execute(text(f"UPDATE {tbl} SET company_id = {cid} WHERE company_id IS NULL"))
                 conn.commit()
             except Exception:
                 pass

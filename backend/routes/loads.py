@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from backend.database import get_db
 from backend import models
+from backend.auth_utils import get_current_user
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -42,9 +43,10 @@ class LoadUpdate(BaseModel):
 def list_loads(
     status: Optional[models.LoadStatus] = None,
     search: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    query = db.query(models.Load)
+    query = db.query(models.Load).filter(models.Load.company_id == current_user.company_id)
     if status:
         query = query.filter(models.Load.status == status)
     if search:
@@ -59,13 +61,22 @@ def list_loads(
 
 
 @router.post("/")
-def create_load(load: LoadCreate, db: Session = Depends(get_db)):
-    truck = db.query(models.Truck).filter(models.Truck.id == load.truck_id).first()
+def create_load(
+    load: LoadCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    truck = db.query(models.Truck).filter(
+        models.Truck.id == load.truck_id,
+        models.Truck.company_id == current_user.company_id,
+    ).first()
     if not truck:
         raise HTTPException(status_code=404, detail="Tır bulunamadı")
-    db_load = models.Load(**load.model_dump())
+    db_load = models.Load(**load.model_dump(), company_id=current_user.company_id)
     if not db_load.load_number:
-        count = db.query(models.Load).count()
+        count = db.query(models.Load).filter(
+            models.Load.company_id == current_user.company_id
+        ).count()
         db_load.load_number = f"L-{count + 1:03d}"
     db.add(db_load)
     db.commit()
@@ -74,8 +85,16 @@ def create_load(load: LoadCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{load_id}")
-def update_load(load_id: int, update: LoadUpdate, db: Session = Depends(get_db)):
-    load = db.query(models.Load).filter(models.Load.id == load_id).first()
+def update_load(
+    load_id: int,
+    update: LoadUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    load = db.query(models.Load).filter(
+        models.Load.id == load_id,
+        models.Load.company_id == current_user.company_id,
+    ).first()
     if not load:
         raise HTTPException(status_code=404, detail="Load bulunamadı")
     for field, value in update.model_dump(exclude_none=True).items():
@@ -86,25 +105,28 @@ def update_load(load_id: int, update: LoadUpdate, db: Session = Depends(get_db))
 
 
 @router.get("/summary")
-def load_summary(db: Session = Depends(get_db)):
-    total = db.query(models.Load).count()
-    in_transit = db.query(models.Load).filter(
-        models.Load.status == models.LoadStatus.in_transit
-    ).count()
-    delivered = db.query(models.Load).filter(
-        models.Load.status == models.LoadStatus.delivered
-    ).count()
-    total_revenue = db.query(models.Load).filter(
-        models.Load.status == models.LoadStatus.delivered
-    ).with_entities(models.Load.rate).all()
-    revenue = sum(r[0] for r in total_revenue if r[0])
+def load_summary(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    cid = current_user.company_id
+    base = db.query(models.Load).filter(models.Load.company_id == cid)
+    total = base.count()
+    in_transit = base.filter(models.Load.status == models.LoadStatus.in_transit).count()
+    delivered_q = db.query(models.Load).filter(
+        models.Load.company_id == cid,
+        models.Load.status == models.LoadStatus.delivered,
+    )
+    delivered = delivered_q.count()
+    revenue = sum(r.rate or 0 for r in delivered_q.all())
     all_loads = db.query(models.Load).filter(
-        models.Load.status != models.LoadStatus.cancelled
+        models.Load.company_id == cid,
+        models.Load.status != models.LoadStatus.cancelled,
     ).count()
-    on_time = delivered  # treat all delivered as on-time for now; refine when delivery_date tracking is added
-    on_time_pct = round((on_time / all_loads * 100) if all_loads else 0)
-    total_miles = db.query(models.Load).with_entities(models.Load.miles).all()
-    miles_sum = sum(m[0] for m in total_miles if m[0])
+    on_time_pct = round((delivered / all_loads * 100) if all_loads else 0)
+    miles_sum = sum(
+        m.miles or 0 for m in db.query(models.Load).filter(models.Load.company_id == cid).all()
+    )
     rpm = round(revenue / miles_sum, 2) if miles_sum else 0
     return {
         "total_loads": total,

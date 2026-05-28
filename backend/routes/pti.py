@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend import models
+from backend.auth_utils import get_current_user
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
@@ -20,9 +21,15 @@ class PTICreate(BaseModel):
 
 
 @router.get("/today")
-def get_today_pti(db: Session = Depends(get_db)):
+def get_today_pti(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     today = date.today().isoformat()
-    drivers = db.query(models.Driver).filter(models.Driver.is_active == True).all()
+    drivers = db.query(models.Driver).filter(
+        models.Driver.company_id == current_user.company_id,
+        models.Driver.is_active == True,
+    ).all()
     result = []
     for driver in drivers:
         pti = db.query(models.PTIRecord).filter(
@@ -47,7 +54,11 @@ def get_today_pti(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def create_pti(pti: PTICreate, db: Session = Depends(get_db)):
+def create_pti(
+    pti: PTICreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     existing = db.query(models.PTIRecord).filter(
         models.PTIRecord.driver_id == pti.driver_id,
         models.PTIRecord.date == pti.date
@@ -56,6 +67,7 @@ def create_pti(pti: PTICreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Bu şoför bugün zaten PTI gönderdi")
 
     db_pti = models.PTIRecord(
+        company_id=current_user.company_id,
         driver_id=pti.driver_id,
         truck_id=pti.truck_id,
         date=pti.date,
@@ -74,7 +86,10 @@ class PTIValidate(BaseModel):
 
 
 @router.post("/nudge")
-async def nudge_missing_pti(db: Session = Depends(get_db)):
+async def nudge_missing_pti(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     import os
     from telegram import Bot
     from dotenv import load_dotenv
@@ -82,7 +97,10 @@ async def nudge_missing_pti(db: Session = Depends(get_db)):
     BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
     today = date.today().isoformat()
-    drivers = db.query(models.Driver).filter(models.Driver.is_active == True).all()
+    drivers = db.query(models.Driver).filter(
+        models.Driver.company_id == current_user.company_id,
+        models.Driver.is_active == True,
+    ).all()
     missing = []
     for driver in drivers:
         pti = db.query(models.PTIRecord).filter(
@@ -115,8 +133,16 @@ async def nudge_missing_pti(db: Session = Depends(get_db)):
 
 
 @router.patch("/{pti_id}/validate")
-def validate_pti(pti_id: int, body: PTIValidate, db: Session = Depends(get_db)):
-    record = db.query(models.PTIRecord).filter(models.PTIRecord.id == pti_id).first()
+def validate_pti(
+    pti_id: int,
+    body: PTIValidate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    record = db.query(models.PTIRecord).filter(
+        models.PTIRecord.id == pti_id,
+        models.PTIRecord.company_id == current_user.company_id,
+    ).first()
     if not record:
         raise HTTPException(status_code=404, detail="PTI bulunamadi")
     record.is_valid = body.is_valid
@@ -129,10 +155,12 @@ def validate_pti(pti_id: int, body: PTIValidate, db: Session = Depends(get_db)):
 def get_pti_history(
     driver_id: Optional[int] = None,
     days: int = 7,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
-    query = db.query(models.PTIRecord)
+    query = db.query(models.PTIRecord).filter(
+        models.PTIRecord.company_id == current_user.company_id
+    )
     if driver_id:
         query = query.filter(models.PTIRecord.driver_id == driver_id)
-    records = query.order_by(models.PTIRecord.submitted_at.desc()).limit(days * 5).all()
-    return records
+    return query.order_by(models.PTIRecord.submitted_at.desc()).limit(days * 5).all()

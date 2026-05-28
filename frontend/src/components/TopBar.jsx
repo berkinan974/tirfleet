@@ -50,6 +50,12 @@ export default function TopBar() {
         </div>
         <Clock />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {user?.company_name && (
+            <>
+              <span className="t-tiny t-up" style={{ color: 'var(--ink-dim)', border: '1px solid var(--line)', padding: '2px 6px', fontFamily: 'var(--mono)', fontSize: 9 }}>{user.company_name.toUpperCase()}</span>
+              <span className="t-tiny t-up t-mute">·</span>
+            </>
+          )}
           <span className="t-tiny t-up t-mute">OPERATOR</span>
           <span className="t-tiny t-up" style={{ color: 'var(--amber)' }}>{user?.name?.toUpperCase() || 'UNKNOWN'}</span>
           <span className="t-tiny t-up t-mute">·</span>

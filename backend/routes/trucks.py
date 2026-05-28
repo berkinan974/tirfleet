@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from backend.database import get_db
 from backend import models
+from backend.auth_utils import get_current_user
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
@@ -30,8 +30,13 @@ class TruckUpdate(BaseModel):
 
 
 @router.get("/")
-def list_trucks(db: Session = Depends(get_db)):
-    trucks = db.query(models.Truck).all()
+def list_trucks(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    trucks = db.query(models.Truck).filter(
+        models.Truck.company_id == current_user.company_id
+    ).all()
     result = []
     for truck in trucks:
         today = date.today().isoformat()
@@ -67,13 +72,18 @@ def list_trucks(db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def create_truck(truck: TruckCreate, db: Session = Depends(get_db)):
+def create_truck(
+    truck: TruckCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
     existing = db.query(models.Truck).filter(
-        models.Truck.unit_number == truck.unit_number
+        models.Truck.company_id == current_user.company_id,
+        models.Truck.unit_number == truck.unit_number,
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Bu unit number zaten kayıtlı")
-    db_truck = models.Truck(**truck.model_dump())
+    db_truck = models.Truck(**truck.model_dump(), company_id=current_user.company_id)
     db.add(db_truck)
     db.commit()
     db.refresh(db_truck)
@@ -81,16 +91,31 @@ def create_truck(truck: TruckCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{truck_id}")
-def get_truck(truck_id: int, db: Session = Depends(get_db)):
-    truck = db.query(models.Truck).filter(models.Truck.id == truck_id).first()
+def get_truck(
+    truck_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    truck = db.query(models.Truck).filter(
+        models.Truck.id == truck_id,
+        models.Truck.company_id == current_user.company_id,
+    ).first()
     if not truck:
         raise HTTPException(status_code=404, detail="Tır bulunamadı")
     return truck
 
 
 @router.patch("/{truck_id}")
-def update_truck(truck_id: int, update: TruckUpdate, db: Session = Depends(get_db)):
-    truck = db.query(models.Truck).filter(models.Truck.id == truck_id).first()
+def update_truck(
+    truck_id: int,
+    update: TruckUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    truck = db.query(models.Truck).filter(
+        models.Truck.id == truck_id,
+        models.Truck.company_id == current_user.company_id,
+    ).first()
     if not truck:
         raise HTTPException(status_code=404, detail="Tır bulunamadı")
     for field, value in update.model_dump(exclude_none=True).items():
