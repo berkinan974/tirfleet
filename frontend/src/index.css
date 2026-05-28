@@ -136,3 +136,48 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); }
+
+/* ── Mobile responsive ────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* TopBar */
+  .topbar-top { flex-wrap: wrap; gap: 8px; padding: 8px 12px !important; }
+  .topbar-clock { display: none; }
+  .topbar-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .topbar-tabs::-webkit-scrollbar { height: 0; }
+
+  /* All multi-column grids collapse to single column */
+  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+
+  /* Page containers: remove fixed height, allow scroll */
+  [style*="height: calc(100vh - 89px)"] {
+    height: auto !important;
+    min-height: calc(100vh - 89px);
+    overflow: auto !important;
+  }
+
+  /* Tables: horizontal scroll */
+  .tbl { min-width: 480px; }
+  div:has(> table.tbl) { overflow-x: auto !important; }
+
+  /* Panels: remove overflow hidden on mobile so content shows */
+  [style*="overflow: hidden"] { overflow: visible !important; }
+  [style*="overflow:hidden"]  { overflow: visible !important; }
+
+  /* Stack borders instead of side-by-side */
+  [style*="border-right: 1px solid var(--line)"] { border-right: none !important; border-bottom: 1px solid var(--line) !important; }
+
+  /* Stats row on dashboard */
+  [style*="flex: 1"][style*="border-right"] { min-width: 140px; }
+
+  /* Modal width */
+  [style*="width: 520px"], [style*="width: 460px"] { width: calc(100vw - 32px) !important; }
+  [style*="width: 400px"] { width: calc(100vw - 32px) !important; }
+
+  /* Login page: single column */
+  [style*="max-width: 640"] { display: none !important; }
+
+  /* Font scaling */
+  .t-num[style*="font-size: 36px"] { font-size: 24px !important; }
+  [style*="font-size: 28px"] { font-size: 20px !important; }
+  [style*="font-size: 36px"] { font-size: 22px !important; }
+}

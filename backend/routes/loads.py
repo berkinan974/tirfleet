@@ -7,6 +7,7 @@ from backend.auth_utils import get_current_user
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import re
 
 router = APIRouter(prefix="/loads", tags=["loads"])
 
@@ -102,6 +103,64 @@ def update_load(
     db.commit()
     db.refresh(load)
     return load
+
+
+@router.get("/ifta")
+def ifta_summary(
+    year: Optional[int] = None,
+    quarter: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """State-by-state mileage summary for IFTA quarterly filing."""
+    from datetime import date
+    year = year or date.today().year
+    quarter_months = {1: (1, 3), 2: (4, 6), 3: (7, 9), 4: (10, 12)}
+
+    query = db.query(models.Load).filter(
+        models.Load.company_id == current_user.company_id,
+        models.Load.miles != None,
+    )
+    if quarter and quarter in quarter_months:
+        sm, em = quarter_months[quarter]
+        start = datetime(year, sm, 1)
+        end = datetime(year, em, 30, 23, 59, 59)
+        query = query.filter(
+            models.Load.pickup_date >= start,
+            models.Load.pickup_date <= end,
+        )
+
+    loads = query.all()
+
+    def extract_state(loc):
+        if not loc:
+            return None
+        m = re.search(r'\b([A-Z]{2})\b', loc.upper())
+        return m.group(1) if m else None
+
+    state_miles: dict[str, float] = {}
+    for load in loads:
+        miles = load.miles or 0
+        o = extract_state(load.origin)
+        d = extract_state(load.destination)
+        if o:
+            state_miles[o] = state_miles.get(o, 0) + miles / 2
+        if d:
+            state_miles[d] = state_miles.get(d, 0) + miles / 2
+
+    total = round(sum(state_miles.values()))
+    states = sorted(
+        [{"state": s, "miles": round(m)} for s, m in state_miles.items()],
+        key=lambda x: x["miles"], reverse=True,
+    )
+    return {
+        "year": year,
+        "quarter": quarter,
+        "total_miles": total,
+        "loads_count": len(loads),
+        "states": states,
+        "note": "Miles estimated 50/50 between origin and destination states.",
+    }
 
 
 @router.get("/summary")

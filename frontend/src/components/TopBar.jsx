@@ -8,6 +8,7 @@ const tabs = [
   { id: '/loads',     label: 'Loads / Dispatch', key: 'F3' },
   { id: '/fleet',     label: 'Fleet Roster',    key: 'F4' },
   { id: '/factoring', label: 'Factoring',       key: 'F5' },
+  { id: '/ifta',      label: 'IFTA',            key: 'F6' },
 ]
 
 function Clock() {

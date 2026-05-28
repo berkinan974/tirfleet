@@ -6,6 +6,7 @@ import Fleet from './pages/Fleet'
 import PTI from './pages/PTI'
 import Loads from './pages/Loads'
 import Factoring from './pages/Factoring'
+import IFTA from './pages/IFTA'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }) {
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="pti" element={<PTI />} />
           <Route path="loads" element={<Loads />} />
           <Route path="factoring" element={<Factoring />} />
+          <Route path="ifta" element={<IFTA />} />
         </Route>
       </Routes>
     </AuthProvider>

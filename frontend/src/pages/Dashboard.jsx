@@ -40,9 +40,9 @@ export default function Dashboard() {
   const [showMsgModal, setShowMsgModal] = useState(false)
   const [msgText, setMsgText] = useState('')
 
-  const { data: trucks = [] } = useQuery({ queryKey: ['trucks'], queryFn: getTrucks })
-  const { data: ptiToday = [] } = useQuery({ queryKey: ['ptiToday'], queryFn: getPtiToday })
-  const { data: summary = {} } = useQuery({ queryKey: ['loadSummary'], queryFn: getLoadSummary })
+  const { data: trucks = [] } = useQuery({ queryKey: ['trucks'], queryFn: getTrucks, refetchInterval: 30000 })
+  const { data: ptiToday = [] } = useQuery({ queryKey: ['ptiToday'], queryFn: getPtiToday, refetchInterval: 30000 })
+  const { data: summary = {} } = useQuery({ queryKey: ['loadSummary'], queryFn: getLoadSummary, refetchInterval: 60000 })
   const { data: loads = [] } = useQuery({ queryKey: ['loads', ''], queryFn: () => getLoads('') })
 
   const nudgeMut = useMutation({
