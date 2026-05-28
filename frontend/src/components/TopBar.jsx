@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 const tabs = [
   { id: '/',          label: 'Overview',        key: 'F1' },
@@ -30,6 +31,9 @@ function Clock() {
 export default function TopBar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { user, logout } = useAuth()
+
+  const handleLogout = () => { logout(); navigate('/login', { replace: true }) }
 
   return (
     <div style={{ borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
@@ -47,9 +51,11 @@ export default function TopBar() {
         <Clock />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span className="t-tiny t-up t-mute">OPERATOR</span>
-          <span className="t-tiny t-up" style={{ color: 'var(--amber)' }}>M.YILMAZ</span>
+          <span className="t-tiny t-up" style={{ color: 'var(--amber)' }}>{user?.name?.toUpperCase() || 'UNKNOWN'}</span>
           <span className="t-tiny t-up t-mute">·</span>
-          <span className="t-tiny t-up t-dim">FLEET MGR</span>
+          <span className="t-tiny t-up t-dim">{user?.role?.toUpperCase() || ''}</span>
+          <span className="t-tiny t-up t-mute">·</span>
+          <span onClick={handleLogout} className="t-tiny t-up" style={{ color: 'var(--red)', cursor: 'pointer' }}>LOGOUT</span>
         </div>
       </div>
 

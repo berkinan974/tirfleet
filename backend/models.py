@@ -5,6 +5,23 @@ from backend.database import Base
 import enum
 
 
+class UserRole(str, enum.Enum):
+    owner      = "owner"
+    dispatcher = "dispatcher"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    email         = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    name          = Column(String, nullable=False)
+    role          = Column(Enum(UserRole), default=UserRole.dispatcher)
+    is_active     = Column(Boolean, default=True)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class TruckStatus(str, enum.Enum):
     active = "active"
     maintenance = "maintenance"

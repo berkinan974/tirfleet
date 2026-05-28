@@ -1,11 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from backend.database import engine
 from backend import models
-from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat
+from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth
+from backend.auth_utils import get_current_user
 import os
 
 models.Base.metadata.create_all(bind=engine)
@@ -40,15 +41,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(trucks.router)
-app.include_router(drivers.router)
-app.include_router(pti.router)
-app.include_router(loads.router)
-app.include_router(factoring.router)
-app.include_router(maintenance.router)
-app.include_router(documents.router)
-app.include_router(rc_parser.router)
-app.include_router(dat.router)
+auth_dep = [Depends(get_current_user)]
+
+app.include_router(auth.router)  # public
+app.include_router(trucks.router,      dependencies=auth_dep)
+app.include_router(drivers.router,     dependencies=auth_dep)
+app.include_router(pti.router,         dependencies=auth_dep)
+app.include_router(loads.router,       dependencies=auth_dep)
+app.include_router(factoring.router,   dependencies=auth_dep)
+app.include_router(maintenance.router, dependencies=auth_dep)
+app.include_router(documents.router,   dependencies=auth_dep)
+app.include_router(rc_parser.router,   dependencies=auth_dep)
+app.include_router(dat.router,         dependencies=auth_dep)
 
 media_dir = os.path.abspath("./media")
 os.makedirs(media_dir, exist_ok=True)

@@ -8,3 +8,5 @@ aiofiles
 pandas
 httpx
 pdfplumber
+python-jose[cryptography]
+passlib[bcrypt]
