@@ -13,31 +13,56 @@ router = APIRouter(prefix="/loads", tags=["loads"])
 
 
 class LoadCreate(BaseModel):
-    truck_id: int
+    truck_id: Optional[int] = None
+    driver_id: Optional[int] = None
     load_number: Optional[str] = None
     broker_name: Optional[str] = None
-    origin: str
-    destination: str
-    pickup_date: Optional[datetime] = None
-    delivery_date: Optional[datetime] = None
-    rate: Optional[float] = None
-    miles: Optional[float] = None
-    dat_reference: Optional[str] = None
-    eta: Optional[str] = None
-    notes: Optional[str] = None
-
-
-class LoadUpdate(BaseModel):
-    broker_name: Optional[str] = None
+    po_number: Optional[str] = None
     origin: Optional[str] = None
     destination: Optional[str] = None
     pickup_date: Optional[datetime] = None
+    pickup_city: Optional[str] = None
+    pickup_state: Optional[str] = None
+    pickup_zip: Optional[str] = None
     delivery_date: Optional[datetime] = None
+    delivery_city: Optional[str] = None
+    delivery_state: Optional[str] = None
+    delivery_zip: Optional[str] = None
+    rate: Optional[float] = None
+    miles: Optional[float] = None
+    billing_status: Optional[str] = "pending"
+    dispatcher_name: Optional[str] = None
+    trailer: Optional[str] = None
+    dat_reference: Optional[str] = None
+    eta: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[models.LoadStatus] = None
+
+
+class LoadUpdate(BaseModel):
+    truck_id: Optional[int] = None
+    driver_id: Optional[int] = None
+    broker_name: Optional[str] = None
+    po_number: Optional[str] = None
+    origin: Optional[str] = None
+    destination: Optional[str] = None
+    pickup_date: Optional[datetime] = None
+    pickup_city: Optional[str] = None
+    pickup_state: Optional[str] = None
+    pickup_zip: Optional[str] = None
+    delivery_date: Optional[datetime] = None
+    delivery_city: Optional[str] = None
+    delivery_state: Optional[str] = None
+    delivery_zip: Optional[str] = None
     rate: Optional[float] = None
     miles: Optional[float] = None
     status: Optional[models.LoadStatus] = None
+    billing_status: Optional[str] = None
+    dispatcher_name: Optional[str] = None
+    trailer: Optional[str] = None
     eta: Optional[str] = None
     notes: Optional[str] = None
+    completed_at: Optional[datetime] = None
 
 
 @router.get("/")
@@ -67,13 +92,24 @@ def create_load(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    truck = db.query(models.Truck).filter(
-        models.Truck.id == load.truck_id,
-        models.Truck.company_id == current_user.company_id,
-    ).first()
-    if not truck:
-        raise HTTPException(status_code=404, detail="Tır bulunamadı")
-    db_load = models.Load(**load.model_dump(), company_id=current_user.company_id)
+    data = load.model_dump()
+
+    # Resolve truck_id — if not provided, use first available truck
+    if not data.get("truck_id"):
+        first_truck = db.query(models.Truck).filter(
+            models.Truck.company_id == current_user.company_id
+        ).first()
+        data["truck_id"] = first_truck.id if first_truck else None
+
+    # Auto-derive origin/destination from city+state if not explicitly provided
+    if not data.get("origin") and (data.get("pickup_city") or data.get("pickup_state")):
+        parts = [p for p in [data.get("pickup_city"), data.get("pickup_state")] if p]
+        data["origin"] = ", ".join(parts)
+    if not data.get("destination") and (data.get("delivery_city") or data.get("delivery_state")):
+        parts = [p for p in [data.get("delivery_city"), data.get("delivery_state")] if p]
+        data["destination"] = ", ".join(parts)
+
+    db_load = models.Load(**data, company_id=current_user.company_id)
     if not db_load.load_number:
         count = db.query(models.Load).filter(
             models.Load.company_id == current_user.company_id

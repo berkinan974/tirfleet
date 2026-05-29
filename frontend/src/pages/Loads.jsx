@@ -1,18 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getLoads, createLoad, updateLoad, getTrucks, getLoadSummary, getDocuments, uploadDocument, deleteDocument, parseRateConfirmation, getDatStatus, searchDatLoads, getDatRates } from '../api'
+import { getLoads, createLoad, updateLoad, getTrucks, getDrivers, getLoadSummary, getDocuments, uploadDocument, deleteDocument, parseRateConfirmation, getDatStatus, searchDatLoads, getDatRates } from '../api'
 import { useState, useRef } from 'react'
 import Ticker from '../components/Ticker'
 
-const STATE_MAP = {
-  pending:    ['',      'BOOKED'],
-  in_transit: ['amber', 'ROLLING'],
-  delivered:  ['green', 'DELIV'],
-  cancelled:  ['red',   'CANCEL'],
+const STATUS_MAP = {
+  pending:    ['',      'NEW'],
+  in_transit: ['amber', 'IN TRANSIT'],
+  delivered:  ['green', 'DELIVERED'],
+  cancelled:  ['red',   'CANCELLED'],
+}
+const BILLING_MAP = {
+  pending:  ['',      'PENDING'],
+  invoiced: ['amber', 'INVOICED'],
+  paid:     ['green', 'PAID'],
 }
 
-function StateTag({ status }) {
-  const [tone, label] = STATE_MAP[status] || ['', status?.toUpperCase()]
+function StatusTag({ status }) {
+  const [tone, label] = STATUS_MAP[status] || ['', status?.toUpperCase()]
   return <span className={`tag ${tone}`}>{label}</span>
+}
+function BillingTag({ status }) {
+  const [tone, label] = BILLING_MAP[status] || ['', status?.toUpperCase()]
+  return <span className={`tag ${tone}`}>{label}</span>
+}
+
+const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+
+const EMPTY_FORM = {
+  status: 'pending', billing_status: 'pending', dispatcher_name: '',
+  pickup_date: '', pickup_city: '', pickup_state: '', pickup_zip: '',
+  delivery_date: '', delivery_city: '', delivery_state: '', delivery_zip: '',
+  broker_name: '', po_number: '', rate: '',
+  driver_id: '', truck_id: '', trailer: '',
+  notes: '', load_number: '', miles: '', dat_reference: '', eta: '',
 }
 
 export default function Loads() {
@@ -20,6 +40,7 @@ export default function Loads() {
   const [filter, setFilter] = useState('')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [showNewLoadMenu, setShowNewLoadMenu] = useState(false)
   const [docsLoad, setDocsLoad] = useState(null)
   const [docType, setDocType] = useState('bol')
   const [datOrigin, setDatOrigin] = useState('')
@@ -34,10 +55,11 @@ export default function Loads() {
   const [rcRaw, setRcRaw] = useState('')
   const fileInputRef = useRef(null)
   const rcInputRef = useRef(null)
-  const [form, setForm] = useState({ truck_id: '', origin: '', destination: '', broker_name: '', rate: '', miles: '', load_number: '', dat_reference: '', eta: '' })
+  const [form, setForm] = useState(EMPTY_FORM)
 
   const { data: loadsAll = [] } = useQuery({ queryKey: ['loads', ''], queryFn: () => getLoads('') })
   const { data: trucks = [] } = useQuery({ queryKey: ['trucks'], queryFn: getTrucks })
+  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers })
   const { data: summary = {} } = useQuery({ queryKey: ['loadSummary'], queryFn: getLoadSummary })
 
   const loads = loadsAll.filter(l => {
@@ -58,7 +80,7 @@ export default function Loads() {
       qc.invalidateQueries(['loads'])
       qc.invalidateQueries(['loadSummary'])
       setShowForm(false)
-      setForm({ truck_id: '', origin: '', destination: '', broker_name: '', rate: '', miles: '', load_number: '', dat_reference: '', eta: '' })
+      setForm(EMPTY_FORM)
     }
   })
   const updateMut = useMutation({
@@ -114,6 +136,9 @@ export default function Loads() {
   ]
 
   const inputStyle = { width: '100%', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '7px 10px', fontFamily: 'var(--mono)', fontSize: 12, boxSizing: 'border-box' }
+  const inStyle    = { width: '100%', background: 'var(--bg-elev)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '5px 8px', fontFamily: 'var(--mono)', fontSize: 11, boxSizing: 'border-box' }
+  const selStyle   = { width: '100%', background: 'var(--bg-elev)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '5px 6px', fontFamily: 'var(--mono)', fontSize: 11, boxSizing: 'border-box' }
+  const labelStyle = { fontSize: 9, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', textTransform: 'uppercase', marginBottom: 3, letterSpacing: '0.05em' }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 89px)' }}>
@@ -140,96 +165,267 @@ export default function Loads() {
 
         {/* Load table */}
         <div style={{ display: 'flex', flexDirection: 'column', borderRight: '1px solid var(--line)', overflow: 'hidden' }}>
+          {/* Header bar */}
           <div className="panel-head" style={{ padding: '10px 16px' }}>
             <span>· LOAD BOARD · {loadsAll.length} RECORDS</span>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <span style={{ cursor: 'pointer', color: 'var(--ink-mute)', fontFamily: 'var(--mono)', fontSize: 10 }}
-                onClick={() => { setRcData(null); setRcRaw(''); setShowRC(true) }}>
-                ▸ PARSE RC
-              </span>
-              <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowForm(true)}>+ NEW LOAD</span>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search..."
+                style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '4px 10px', fontFamily: 'var(--mono)', fontSize: 10, width: 180 }}
+              />
+              {/* New Load dropdown */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="btn primary"
+                  style={{ padding: '5px 14px', fontSize: 11, display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => setShowNewLoadMenu(m => !m)}
+                >
+                  + New Load <span style={{ fontSize: 9 }}>▼</span>
+                </button>
+                {showNewLoadMenu && (
+                  <div style={{ position: 'absolute', right: 0, top: '110%', background: 'var(--panel)', border: '1px solid var(--line-strong)', zIndex: 50, width: 220, boxShadow: '0 4px 12px #0006' }}>
+                    <div
+                      style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--line)' }}
+                      onClick={() => { setShowNewLoadMenu(false); setRcData(null); setRcRaw(''); setShowRC(true) }}
+                    >
+                      <div style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>Auto-Create from PDF</div>
+                      <div style={{ fontSize: 10, color: 'var(--ink-mute)', marginTop: 2 }}>Extract load info from a Rate Confirmation</div>
+                    </div>
+                    <div
+                      style={{ padding: '10px 14px', cursor: 'pointer' }}
+                      onClick={() => { setShowNewLoadMenu(false); setShowForm(f => !f) }}
+                    >
+                      <div style={{ fontSize: 11, color: 'var(--ink)', fontFamily: 'var(--mono)' }}>Manual Load Entry</div>
+                      <div style={{ fontSize: 10, color: 'var(--ink-mute)', marginTop: 2 }}>Enter load details manually</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Filter chips + search */}
+          {/* Inline New Load Form */}
+          {showForm && (
+            <div style={{ background: 'var(--bg-elev)', borderBottom: '2px solid var(--amber)', padding: '14px 16px', flexShrink: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: 12, fontWeight: 700 }}>NEW LOAD</div>
+
+              {/* Row 1: Status / Billing / Dispatcher */}
+              <div style={{ display: 'grid', gridTemplateColumns: '160px 160px 1fr', gap: 10, marginBottom: 12 }}>
+                <div>
+                  <div style={labelStyle}>STATUS</div>
+                  <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={selStyle}>
+                    <option value="pending">New</option>
+                    <option value="in_transit">In Transit</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={labelStyle}>BILLING STATUS</div>
+                  <select value={form.billing_status} onChange={e => setForm(f => ({ ...f, billing_status: e.target.value }))} style={selStyle}>
+                    <option value="pending">Pending</option>
+                    <option value="invoiced">Invoiced</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+                <div>
+                  <div style={labelStyle}>DISPATCHER</div>
+                  <input value={form.dispatcher_name} onChange={e => setForm(f => ({ ...f, dispatcher_name: e.target.value }))} style={inStyle} placeholder="Dispatcher name" />
+                </div>
+              </div>
+
+              {/* Row 2: Pickup / Delivery / Broker / Driver */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+                {/* Pickup */}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--amber)', fontFamily: 'var(--mono)', marginBottom: 8 }}>↑ PICKUP</div>
+                  <div style={labelStyle}>DATE</div>
+                  <input type="date" value={form.pickup_date} onChange={e => setForm(f => ({ ...f, pickup_date: e.target.value }))} style={{ ...inStyle, marginBottom: 6 }} />
+                  <div style={labelStyle}>CITY</div>
+                  <input value={form.pickup_city} onChange={e => setForm(f => ({ ...f, pickup_city: e.target.value }))} style={{ ...inStyle, marginBottom: 6 }} placeholder="City" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 6 }}>
+                    <div>
+                      <div style={labelStyle}>STATE</div>
+                      <select value={form.pickup_state} onChange={e => setForm(f => ({ ...f, pickup_state: e.target.value }))} style={selStyle}>
+                        <option value="">—</option>
+                        {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>ZIP</div>
+                      <input value={form.pickup_zip} onChange={e => setForm(f => ({ ...f, pickup_zip: e.target.value }))} style={inStyle} placeholder="ZIP" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery */}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--green)', fontFamily: 'var(--mono)', marginBottom: 8 }}>↓ DELIVERY</div>
+                  <div style={labelStyle}>DATE</div>
+                  <input type="date" value={form.delivery_date} onChange={e => setForm(f => ({ ...f, delivery_date: e.target.value }))} style={{ ...inStyle, marginBottom: 6 }} />
+                  <div style={labelStyle}>CITY</div>
+                  <input value={form.delivery_city} onChange={e => setForm(f => ({ ...f, delivery_city: e.target.value }))} style={{ ...inStyle, marginBottom: 6 }} placeholder="City" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 6 }}>
+                    <div>
+                      <div style={labelStyle}>STATE</div>
+                      <select value={form.delivery_state} onChange={e => setForm(f => ({ ...f, delivery_state: e.target.value }))} style={selStyle}>
+                        <option value="">—</option>
+                        {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={labelStyle}>ZIP</div>
+                      <input value={form.delivery_zip} onChange={e => setForm(f => ({ ...f, delivery_zip: e.target.value }))} style={inStyle} placeholder="ZIP" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Broker */}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', marginBottom: 8 }}>BROKER</div>
+                  <div style={labelStyle}>BROKER</div>
+                  <input value={form.broker_name} onChange={e => setForm(f => ({ ...f, broker_name: e.target.value }))} style={{ ...inStyle, marginBottom: 6 }} placeholder="Broker name" />
+                  <div style={labelStyle}>PO #</div>
+                  <input value={form.po_number} onChange={e => setForm(f => ({ ...f, po_number: e.target.value }))} style={{ ...inStyle, marginBottom: 6 }} placeholder="PO number" />
+                  <div style={labelStyle}>RATE</div>
+                  <input type="number" value={form.rate} onChange={e => setForm(f => ({ ...f, rate: e.target.value }))} style={inStyle} placeholder="$0.00" />
+                </div>
+
+                {/* Driver */}
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--line)', padding: 10 }}>
+                  <div style={{ fontSize: 10, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', marginBottom: 8 }}>DRIVER</div>
+                  <div style={labelStyle}>DRIVER</div>
+                  <select value={form.driver_id} onChange={e => setForm(f => ({ ...f, driver_id: e.target.value }))} style={{ ...selStyle, marginBottom: 6 }}>
+                    <option value="">— Select Driver —</option>
+                    {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  <div style={labelStyle}>TRUCK</div>
+                  <select value={form.truck_id} onChange={e => setForm(f => ({ ...f, truck_id: e.target.value }))} style={{ ...selStyle, marginBottom: 6 }}>
+                    <option value="">— Select Truck —</option>
+                    {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}{t.driver ? ` · ${t.driver}` : ''}</option>)}
+                  </select>
+                  <div style={labelStyle}>TRAILER</div>
+                  <input value={form.trailer} onChange={e => setForm(f => ({ ...f, trailer: e.target.value }))} style={inStyle} placeholder="Trailer #" />
+                </div>
+              </div>
+
+              {/* Row 3: Notes + Miles + Actions */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px auto', gap: 10, alignItems: 'end' }}>
+                <div>
+                  <div style={labelStyle}>NOTES</div>
+                  <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={inStyle} placeholder="Notes..." />
+                </div>
+                <div>
+                  <div style={labelStyle}>MILES (opt)</div>
+                  <input type="number" value={form.miles} onChange={e => setForm(f => ({ ...f, miles: e.target.value }))} style={inStyle} placeholder="0" />
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn primary"
+                    style={{ padding: '7px 20px', fontSize: 11 }}
+                    disabled={createMut.isPending}
+                    onClick={() => createMut.mutate({
+                      ...form,
+                      truck_id: form.truck_id ? parseInt(form.truck_id) : null,
+                      driver_id: form.driver_id ? parseInt(form.driver_id) : null,
+                      rate: parseFloat(form.rate) || 0,
+                      miles: parseFloat(form.miles) || 0,
+                      pickup_date: form.pickup_date || null,
+                      delivery_date: form.delivery_date || null,
+                    })}
+                  >
+                    {createMut.isPending ? 'Saving...' : '+ Create Load'}
+                  </button>
+                  <button className="btn" style={{ padding: '7px 14px', fontSize: 11 }} onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Filter chips */}
           <div style={{ display: 'flex', gap: 6, padding: '8px 16px', borderBottom: '1px solid var(--line)', background: 'var(--bg-elev)', flexShrink: 0, alignItems: 'center' }}>
             {[
               ['',           `ALL · ${loadsAll.length}`],
-              ['pending',    `BOOKED · ${pending}`],
-              ['in_transit', `ROLLING · ${inTransit}`],
-              ['delivered',  `DELIV · ${delivered}`],
-              ['cancelled',  `CANCEL · ${cancelled}`],
+              ['pending',    `NEW · ${pending}`],
+              ['in_transit', `IN TRANSIT · ${inTransit}`],
+              ['delivered',  `DELIVERED · ${delivered}`],
+              ['cancelled',  `CANCELLED · ${cancelled}`],
             ].map(([val, label]) => (
               <span key={val} onClick={() => setFilter(val)}
                 className={`tag ${filter === val ? 'amber' : ''}`}
                 style={{ cursor: 'pointer' }}>{label}</span>
             ))}
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="SEARCH BROKER / LANE / LOAD#"
-              style={{ marginLeft: 'auto', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', padding: '4px 10px', fontFamily: 'var(--mono)', fontSize: 10, width: 220 }}
-            />
           </div>
 
+          {/* Table */}
           <div style={{ flex: 1, overflow: 'auto' }}>
             {loads.length === 0 ? (
-              <div style={{ padding: 24, color: 'var(--ink-mute)', fontSize: 11 }}>NO LOADS FOUND — ADD LOADS WITH [+ NEW LOAD]</div>
+              <div style={{ padding: 24, color: 'var(--ink-mute)', fontSize: 11 }}>NO LOADS FOUND — USE [+ NEW LOAD] TO ADD</div>
             ) : (
-              <table className="tbl">
+              <table className="tbl" style={{ minWidth: 1200 }}>
                 <thead>
                   <tr>
-                    <th>Load #</th>
-                    <th>Broker</th>
-                    <th>Lane</th>
-                    <th className="num">Miles</th>
-                    <th className="num">Rate</th>
-                    <th className="num">$/MI</th>
-                    <th>Truck</th>
-                    <th>Driver</th>
-                    <th>ETA</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                    <th>Docs</th>
+                    <th>LOAD</th>
+                    <th>DATE</th>
+                    <th>DRIVER</th>
+                    <th>BROKER</th>
+                    <th>PO #</th>
+                    <th>PICKUP</th>
+                    <th>DELIVERY</th>
+                    <th className="num">RATE</th>
+                    <th>COMPLETED</th>
+                    <th>STATUS</th>
+                    <th>BILLING</th>
+                    <th>NOTES</th>
+                    <th>DOCS</th>
+                    <th>ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loads.map(l => {
                     const truck = truckMap[l.truck_id]
-                    const rpm = l.miles && l.rate ? l.rate / l.miles : null
-                    const rpmColor = rpm === null ? 'var(--ink-mute)' : rpm >= 5 ? 'var(--green)' : rpm >= 4 ? 'var(--amber)' : 'var(--red)'
+                    const driverName = l.driver?.name || truck?.driver || '—'
+                    const pickupLoc = [l.pickup_city, l.pickup_state].filter(Boolean).join(', ') || l.origin || '—'
+                    const deliveryLoc = [l.delivery_city, l.delivery_state].filter(Boolean).join(', ') || l.destination || '—'
+                    const pickupDate = l.pickup_date ? new Date(l.pickup_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'
+                    const completedDate = l.completed_at ? new Date(l.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'
                     return (
                       <tr key={l.id}>
                         <td>
-                          <div className="t-mono">{l.load_number || `L-${l.id}`}</div>
-                          <div className="t-tiny t-mute">{l.dat_reference || '—'}</div>
+                          <div className="t-mono" style={{ fontSize: 11 }}>{l.load_number || `L-${l.id}`}</div>
                         </td>
-                        <td>{l.broker_name || <span className="t-mute">—</span>}</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 11 }}>
-                            <span>{l.origin}</span>
-                            <span style={{ color: 'var(--amber)' }}>→</span>
-                            <span>{l.destination}</span>
-                          </div>
-                        </td>
-                        <td className="num">{l.miles ? l.miles.toLocaleString() : '—'}</td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-dim)' }}>{pickupDate}</td>
+                        <td style={{ fontSize: 11 }}>{driverName}</td>
+                        <td style={{ fontSize: 11 }}>{l.broker_name || <span className="t-mute">—</span>}</td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-dim)' }}>{l.po_number || '—'}</td>
+                        <td style={{ fontSize: 10 }}>{pickupLoc}</td>
+                        <td style={{ fontSize: 10 }}>{deliveryLoc}</td>
                         <td className="num">${(l.rate || 0).toLocaleString()}</td>
-                        <td className="num"><span style={{ color: rpmColor }}>{rpm !== null ? `$${rpm.toFixed(2)}` : '—'}</span></td>
-                        <td><span className="t-display" style={{ fontSize: 12 }}>{truck?.unit_number || '—'}</span></td>
-                        <td><span style={{ fontSize: 11, color: 'var(--ink-dim)' }}>{truck?.driver || <span className="t-mute">—</span>}</span></td>
-                        <td><span style={{ fontSize: 11, color: 'var(--ink-dim)' }}>{l.eta || <span className="t-mute">—</span>}</span></td>
-                        <td><StateTag status={l.status} /></td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-dim)' }}>{completedDate}</td>
                         <td>
-                          <select value={l.status} onChange={e => updateMut.mutate({ id: l.id, data: { status: e.target.value } })}
-                            style={{ background: 'var(--bg-elev)', border: '1px solid var(--line)', color: 'var(--ink-dim)', padding: '3px 6px', fontSize: 10, fontFamily: 'var(--mono)', cursor: 'pointer' }}>
-                            <option value="pending">BOOKED</option>
-                            <option value="in_transit">ROLLING</option>
-                            <option value="delivered">DELIV</option>
-                            <option value="cancelled">CANCEL</option>
-                          </select>
+                          <StatusTag status={l.status} />
+                        </td>
+                        <td>
+                          <BillingTag status={l.billing_status || 'pending'} />
+                        </td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-mute)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {l.notes || '—'}
                         </td>
                         <td>
                           <span onClick={() => setDocsLoad(l)} style={{ fontSize: 10, color: 'var(--amber)', cursor: 'pointer', fontFamily: 'var(--mono)' }}>DOCS</span>
+                        </td>
+                        <td>
+                          <select value={l.status} onChange={e => updateMut.mutate({ id: l.id, data: { status: e.target.value } })}
+                            style={{ background: 'var(--bg-elev)', border: '1px solid var(--line)', color: 'var(--ink-dim)', padding: '3px 6px', fontSize: 10, fontFamily: 'var(--mono)', cursor: 'pointer' }}>
+                            <option value="pending">New</option>
+                            <option value="in_transit">In Transit</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
                         </td>
                       </tr>
                     )
@@ -581,51 +777,6 @@ export default function Loads() {
         </div>
       )}
 
-      {/* Add Load Modal */}
-      {showForm && (
-        <div style={{ position: 'fixed', inset: 0, background: '#000000bb', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', padding: 24, width: 560 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
-              <span className="t-tiny t-up t-dim">· NEW LOAD ENTRY</span>
-              <button onClick={() => setShowForm(false)} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                ['origin','Origin *'], ['destination','Destination *'],
-                ['broker_name','Broker'], ['rate','Rate ($)'],
-                ['miles','Miles'], ['eta','ETA (e.g. 18:30 CT)'],
-                ['load_number','Load # (opt)'], ['dat_reference','DAT Ref (opt)'],
-              ].map(([key, label]) => (
-                <div key={key}>
-                  <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
-                  <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
-                </div>
-              ))}
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Truck</div>
-                <select value={form.truck_id} onChange={e => setForm(f => ({ ...f, truck_id: e.target.value }))} style={inputStyle}>
-                  <option value="">— SELECT —</option>
-                  {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}{t.driver ? ` · ${t.driver}` : ''}</option>)}
-                </select>
-              </div>
-              {form.rate && form.miles && (
-                <div style={{ gridColumn: '1 / -1', padding: '8px 10px', background: 'var(--bg-elev)', border: '1px solid var(--line)', fontSize: 11 }}>
-                  <span className="t-mute">$/MI: </span>
-                  <span style={{ color: (form.rate / form.miles) >= 4 ? 'var(--green)' : 'var(--amber)' }}>
-                    ${(parseFloat(form.rate) / parseFloat(form.miles)).toFixed(2)}
-                  </span>
-                  <span className="t-mute" style={{ marginLeft: 16 }}>Total: </span>
-                  <span style={{ color: 'var(--green)' }}>${parseFloat(form.rate).toLocaleString()}</span>
-                </div>
-              )}
-            </div>
-            <button onClick={() => createMut.mutate({ ...form, truck_id: parseInt(form.truck_id), rate: parseFloat(form.rate) || 0, miles: parseFloat(form.miles) || 0 })}
-              className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
-              ▸ SUBMIT LOAD
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

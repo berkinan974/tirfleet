@@ -28,6 +28,19 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE pti_records ADD COLUMN company_id INTEGER",
         "ALTER TABLE factoring_records ADD COLUMN company_id INTEGER",
         "ALTER TABLE maintenance_logs ADD COLUMN company_id INTEGER",
+        # EZLoads-style fields
+        "ALTER TABLE loads ADD COLUMN driver_id INTEGER",
+        "ALTER TABLE loads ADD COLUMN po_number VARCHAR",
+        "ALTER TABLE loads ADD COLUMN billing_status VARCHAR DEFAULT 'pending'",
+        "ALTER TABLE loads ADD COLUMN pickup_city VARCHAR",
+        "ALTER TABLE loads ADD COLUMN pickup_state VARCHAR",
+        "ALTER TABLE loads ADD COLUMN pickup_zip VARCHAR",
+        "ALTER TABLE loads ADD COLUMN delivery_city VARCHAR",
+        "ALTER TABLE loads ADD COLUMN delivery_state VARCHAR",
+        "ALTER TABLE loads ADD COLUMN delivery_zip VARCHAR",
+        "ALTER TABLE loads ADD COLUMN trailer VARCHAR",
+        "ALTER TABLE loads ADD COLUMN dispatcher_name VARCHAR",
+        "ALTER TABLE loads ADD COLUMN completed_at DATETIME",
     ]
     with engine.connect() as conn:
         for sql in migrations:
