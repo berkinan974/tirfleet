@@ -21,8 +21,11 @@ const STATS = [
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [mode, setMode] = useState('login')  // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -31,11 +34,17 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const res = await api.post('/auth/login', { email, password })
-      login(res.data.access_token, res.data.user)
-      navigate('/', { replace: true })
+      if (mode === 'login') {
+        const res = await api.post('/auth/login', { email, password })
+        login(res.data.access_token, res.data.user)
+        navigate('/', { replace: true })
+      } else {
+        const res = await api.post('/auth/register', { email, password, name, company_name: companyName })
+        login(res.data.access_token, res.data.user)
+        navigate('/', { replace: true })
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed')
+      setError(err.response?.data?.detail || 'İşlem başarısız')
     } finally {
       setLoading(false)
     }
@@ -118,15 +127,29 @@ export default function Login() {
       {/* RIGHT — Login */}
       <div style={{ width: 400, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 40px' }}>
         <div style={{ width: '100%' }}>
-          <div className="t-tiny t-up t-mute" style={{ marginBottom: 28, letterSpacing: '0.15em' }}>· OPERATOR ACCESS</div>
+          <div className="t-tiny t-up t-mute" style={{ marginBottom: 28, letterSpacing: '0.15em' }}>
+            {mode === 'login' ? '· OPERATOR ACCESS' : '· İLK KURULUM — YÖNETİCİ HESABI'}
+          </div>
 
           <form onSubmit={handleSubmit}>
+            {mode === 'register' && (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <div className="t-tiny t-up t-mute" style={{ marginBottom: 6 }}>Ad Soyad *</div>
+                  <input type="text" value={name} onChange={e => setName(e.target.value)} style={inp} required />
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <div className="t-tiny t-up t-mute" style={{ marginBottom: 6 }}>Şirket Adı</div>
+                  <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} style={inp} placeholder="TIR Fleet" />
+                </div>
+              </>
+            )}
             <div style={{ marginBottom: 14 }}>
               <div className="t-tiny t-up t-mute" style={{ marginBottom: 6 }}>Email</div>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={inp} autoFocus required />
             </div>
             <div style={{ marginBottom: 24 }}>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 6 }}>Password</div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 6 }}>Şifre</div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={inp} required />
             </div>
 
@@ -139,19 +162,24 @@ export default function Login() {
             <button type="submit" className="btn primary"
               style={{ width: '100%', justifyContent: 'center', padding: 13, fontSize: 12, letterSpacing: '0.1em' }}
               disabled={loading}>
-              {loading ? '⟳ AUTHENTICATING...' : '▸ LOGIN TO FLEETSYNC'}
+              {loading
+                ? '⟳ İŞLEM YAPILIYOR...'
+                : mode === 'login' ? '▸ GİRİŞ YAP' : '▸ HESAP OLUŞTUR'}
             </button>
           </form>
 
-          <div style={{ marginTop: 32, padding: '16px', background: 'var(--bg-elev)', border: '1px solid var(--line)' }}>
-            <div className="t-tiny t-up t-mute" style={{ marginBottom: 8 }}>· REQUEST ACCESS</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-dim)', lineHeight: 1.7 }}>
-              Interested in FLEETSYNC for your fleet?<br />
-              Contact us to schedule a demo.
-            </div>
-            <div style={{ marginTop: 10, fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--mono)' }}>
-              contact@fleetsync.io
-            </div>
+          <div style={{ marginTop: 20, textAlign: 'center' }}>
+            {mode === 'login' ? (
+              <span style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', cursor: 'pointer' }}
+                onClick={() => { setMode('register'); setError('') }}>
+                İlk kurulum? <span style={{ color: 'var(--amber)' }}>Hesap oluştur →</span>
+              </span>
+            ) : (
+              <span style={{ fontSize: 11, color: 'var(--ink-mute)', fontFamily: 'var(--mono)', cursor: 'pointer' }}
+                onClick={() => { setMode('login'); setError('') }}>
+                Zaten hesabın var? <span style={{ color: 'var(--amber)' }}>Giriş yap →</span>
+              </span>
+            )}
           </div>
 
           <div className="t-tiny t-mute" style={{ textAlign: 'center', marginTop: 24, fontSize: 9, letterSpacing: '0.1em' }}>
