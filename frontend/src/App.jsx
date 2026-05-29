@@ -11,6 +11,7 @@ import Partners from './pages/Partners'
 import Fuel from './pages/Fuel'
 import Accounting from './pages/Accounting'
 import Payroll from './pages/Payroll'
+import Reports from './pages/Reports'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }) {
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="fuel" element={<Fuel />} />
           <Route path="accounting" element={<Accounting />} />
           <Route path="payroll" element={<Payroll />} />
+          <Route path="reports" element={<Reports />} />
         </Route>
       </Routes>
     </AuthProvider>

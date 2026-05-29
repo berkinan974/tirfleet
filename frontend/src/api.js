@@ -118,6 +118,15 @@ export const createTrailer = (data) => api.post('/trailers/', data).then(r => r.
 export const updateTrailer = (id, data) => api.patch(`/trailers/${id}`, data).then(r => r.data)
 export const deleteTrailer = (id) => api.delete(`/trailers/${id}`).then(r => r.data)
 
+export const getReportTotalRevenue = (params) => api.get('/reports/total-revenue', { params }).then(r => r.data)
+export const getReportRatePerMile = (params) => api.get('/reports/rate-per-mile', { params }).then(r => r.data)
+export const getReportRevenueByDispatcher = (params) => api.get('/reports/revenue-by-dispatcher', { params }).then(r => r.data)
+export const getReportPaymentSummary = (params) => api.get('/reports/payment-summary', { params }).then(r => r.data)
+export const getReportExpenses = (params) => api.get('/reports/expenses', { params }).then(r => r.data)
+export const getReportGrossProfit = (params) => api.get('/reports/gross-profit', { params }).then(r => r.data)
+export const getReportGrossProfitPerLoad = (params) => api.get('/reports/gross-profit-per-load', { params }).then(r => r.data)
+export const getReportProfitLoss = (params) => api.get('/reports/profit-loss', { params }).then(r => r.data)
+
 export const getFactoring = () => api.get('/factoring/').then(r => r.data)
 export const getFactoringSummary = () => api.get('/factoring/summary').then(r => r.data)
 export const getUninvoicedLoads = () => api.get('/factoring/uninvoiced').then(r => r.data)
