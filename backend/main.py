@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from backend.database import engine
 from backend import models
-from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth, partners, vendors, trailers
+from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth, partners, vendors, trailers, fuel
 from backend.auth_utils import get_current_user
 import os
 
@@ -122,6 +122,7 @@ app.include_router(dat.router,         dependencies=auth_dep)
 app.include_router(partners.router,    dependencies=auth_dep)
 app.include_router(vendors.router,     dependencies=auth_dep)
 app.include_router(trailers.router,    dependencies=auth_dep)
+app.include_router(fuel.router,        dependencies=auth_dep)
 
 media_dir = os.path.abspath("./media")
 os.makedirs(media_dir, exist_ok=True)

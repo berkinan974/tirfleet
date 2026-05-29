@@ -85,6 +85,17 @@ export const createVendor = (data) => api.post('/vendors/', data).then(r => r.da
 export const updateVendor = (id, data) => api.patch(`/vendors/${id}`, data).then(r => r.data)
 export const deleteVendor = (id) => api.delete(`/vendors/${id}`).then(r => r.data)
 
+export const getFuelCards = () => api.get('/fuel/cards').then(r => r.data)
+export const createFuelCard = (data) => api.post('/fuel/cards', data).then(r => r.data)
+export const updateFuelCard = (id, data) => api.patch(`/fuel/cards/${id}`, data).then(r => r.data)
+export const deleteFuelCard = (id) => api.delete(`/fuel/cards/${id}`).then(r => r.data)
+
+export const getFuelTransactions = () => api.get('/fuel/transactions').then(r => r.data)
+export const createFuelTransaction = (data) => api.post('/fuel/transactions', data).then(r => r.data)
+export const updateFuelTransaction = (id, data) => api.patch(`/fuel/transactions/${id}`, data).then(r => r.data)
+export const deleteFuelTransaction = (id) => api.delete(`/fuel/transactions/${id}`).then(r => r.data)
+export const getFuelSummary = () => api.get('/fuel/summary').then(r => r.data)
+
 export const getTrailers = () => api.get('/trailers/').then(r => r.data)
 export const createTrailer = (data) => api.post('/trailers/', data).then(r => r.data)
 export const updateTrailer = (id, data) => api.patch(`/trailers/${id}`, data).then(r => r.data)

@@ -303,3 +303,46 @@ class LoadDocument(Base):
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
 
     load = relationship("Load", back_populates="documents")
+
+
+class FuelCard(Base):
+    __tablename__ = "fuel_cards"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    company_id      = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    card_number     = Column(String, nullable=False)
+    is_active       = Column(Boolean, default=True)
+    expiration_date = Column(DateTime)
+    truck_id        = Column(Integer, ForeignKey("trucks.id"), nullable=True)
+    driver_id       = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    assigned_on     = Column(DateTime)
+    notes           = Column(Text)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    truck  = relationship("Truck")
+    driver = relationship("Driver")
+
+
+class FuelTransaction(Base):
+    __tablename__ = "fuel_transactions"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    company_id      = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    driver_id       = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    fuel_card_id    = Column(Integer, ForeignKey("fuel_cards.id"), nullable=True)
+    truck_id        = Column(Integer, ForeignKey("trucks.id"), nullable=True)
+    trailer_id      = Column(Integer, ForeignKey("trailers.id"), nullable=True)
+    product_code    = Column(String)
+    include_in_ifta = Column(Boolean, default=True)
+    date            = Column(String, nullable=False)
+    amount          = Column(Float)
+    gallons         = Column(Float)
+    city            = Column(String)
+    state           = Column(String)
+    zip             = Column(String)
+    notes           = Column(Text)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    driver    = relationship("Driver")
+    truck     = relationship("Truck")
+    fuel_card = relationship("FuelCard")

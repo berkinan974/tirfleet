@@ -8,6 +8,7 @@ import Loads from './pages/Loads'
 import Factoring from './pages/Factoring'
 import IFTA from './pages/IFTA'
 import Partners from './pages/Partners'
+import Fuel from './pages/Fuel'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }) {
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="factoring" element={<Factoring />} />
           <Route path="ifta" element={<IFTA />} />
           <Route path="partners" element={<Partners />} />
+          <Route path="fuel" element={<Fuel />} />
         </Route>
       </Routes>
     </AuthProvider>
