@@ -9,6 +9,8 @@ const tabs = [
   { id: '/fleet',     label: 'Fleet Roster',    key: 'F4' },
   { id: '/factoring', label: 'Factoring',       key: 'F5' },
   { id: '/ifta',      label: 'IFTA',            key: 'F6' },
+  { id: '/fuel',      label: 'Fuel',            key: 'F7' },
+  { id: '/partners',  label: 'Partners',        key: 'F8' },
 ]
 
 function Clock() {
