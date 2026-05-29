@@ -118,6 +118,11 @@ export const createTrailer = (data) => api.post('/trailers/', data).then(r => r.
 export const updateTrailer = (id, data) => api.patch(`/trailers/${id}`, data).then(r => r.data)
 export const deleteTrailer = (id) => api.delete(`/trailers/${id}`).then(r => r.data)
 
+export const getSafetyClaims = () => api.get('/safety/claims').then(r => r.data)
+export const createSafetyClaim = (data) => api.post('/safety/claims', data).then(r => r.data)
+export const updateSafetyClaim = (id, data) => api.patch(`/safety/claims/${id}`, data).then(r => r.data)
+export const deleteSafetyClaim = (id) => api.delete(`/safety/claims/${id}`).then(r => r.data)
+
 export const getTollDevices = () => api.get('/tolls/devices').then(r => r.data)
 export const createTollDevice = (data) => api.post('/tolls/devices', data).then(r => r.data)
 export const updateTollDevice = (id, data) => api.patch(`/tolls/devices/${id}`, data).then(r => r.data)

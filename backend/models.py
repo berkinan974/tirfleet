@@ -373,6 +373,27 @@ class TollImportTemplate(Base):
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class SafetyClaim(Base):
+    __tablename__ = "safety_claims"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    company_id        = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    driver_id         = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    truck_id          = Column(Integer, ForeignKey("trucks.id"), nullable=True)
+    trailer_id        = Column(Integer, ForeignKey("trailers.id"), nullable=True)
+    date              = Column(String, nullable=False)
+    claim_type        = Column(String, default="Accident")   # Accident | Cargo | Liability | Workers Comp | Other
+    status            = Column(String, default="Open")       # Open | In Progress | Closed
+    amount            = Column(Float, default=0)
+    short_description = Column(String)
+    full_description  = Column(Text)
+    created_at        = Column(DateTime(timezone=True), server_default=func.now())
+
+    driver  = relationship("Driver")
+    truck   = relationship("Truck")
+    trailer = relationship("Trailer")
+
+
 class FuelTransaction(Base):
     __tablename__ = "fuel_transactions"
 
