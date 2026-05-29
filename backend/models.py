@@ -323,6 +323,56 @@ class FuelCard(Base):
     driver = relationship("Driver")
 
 
+class TollDevice(Base):
+    __tablename__ = "toll_devices"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    company_id  = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    device_name = Column(String, nullable=False)
+    is_active   = Column(Boolean, default=True)
+    truck_id    = Column(Integer, ForeignKey("trucks.id"), nullable=True)
+    notes       = Column(Text)
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    truck = relationship("Truck")
+
+
+class TollTransaction(Base):
+    __tablename__ = "toll_transactions"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    company_id   = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    device_id    = Column(Integer, ForeignKey("toll_devices.id"), nullable=True)
+    driver_id    = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    truck_id     = Column(Integer, ForeignKey("trucks.id"), nullable=True)
+    payable_to   = Column(String)
+    posting_date = Column(String, nullable=False)
+    amount       = Column(Float)
+    is_deduction = Column(Boolean, default=False)
+    entry_date   = Column(String)
+    entry_time   = Column(String)
+    entry_plaza  = Column(String)
+    exit_date    = Column(String)
+    exit_time    = Column(String)
+    exit_plaza   = Column(String)
+    notes        = Column(Text)
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+
+    device = relationship("TollDevice")
+    driver = relationship("Driver")
+    truck  = relationship("Truck")
+
+
+class TollImportTemplate(Base):
+    __tablename__ = "toll_import_templates"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    company_id       = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    template_name    = Column(String, nullable=False)
+    assigned_columns = Column(Text)
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class FuelTransaction(Base):
     __tablename__ = "fuel_transactions"
 

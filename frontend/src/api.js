@@ -118,6 +118,20 @@ export const createTrailer = (data) => api.post('/trailers/', data).then(r => r.
 export const updateTrailer = (id, data) => api.patch(`/trailers/${id}`, data).then(r => r.data)
 export const deleteTrailer = (id) => api.delete(`/trailers/${id}`).then(r => r.data)
 
+export const getTollDevices = () => api.get('/tolls/devices').then(r => r.data)
+export const createTollDevice = (data) => api.post('/tolls/devices', data).then(r => r.data)
+export const updateTollDevice = (id, data) => api.patch(`/tolls/devices/${id}`, data).then(r => r.data)
+export const deleteTollDevice = (id) => api.delete(`/tolls/devices/${id}`).then(r => r.data)
+
+export const getTollTransactions = () => api.get('/tolls/transactions').then(r => r.data)
+export const createTollTransaction = (data) => api.post('/tolls/transactions', data).then(r => r.data)
+export const updateTollTransaction = (id, data) => api.patch(`/tolls/transactions/${id}`, data).then(r => r.data)
+export const deleteTollTransaction = (id) => api.delete(`/tolls/transactions/${id}`).then(r => r.data)
+
+export const getTollTemplates = () => api.get('/tolls/templates').then(r => r.data)
+export const createTollTemplate = (data) => api.post('/tolls/templates', data).then(r => r.data)
+export const deleteTollTemplate = (id) => api.delete(`/tolls/templates/${id}`).then(r => r.data)
+
 export const getReportTotalRevenue = (params) => api.get('/reports/total-revenue', { params }).then(r => r.data)
 export const getReportRatePerMile = (params) => api.get('/reports/rate-per-mile', { params }).then(r => r.data)
 export const getReportRevenueByDispatcher = (params) => api.get('/reports/revenue-by-dispatcher', { params }).then(r => r.data)

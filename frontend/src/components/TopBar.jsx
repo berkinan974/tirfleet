@@ -14,6 +14,7 @@ const tabs = [
   { id: '/accounting', label: 'Accounting',  key: 'F9' },
   { id: '/payroll',    label: 'Payroll',     key: 'F10' },
   { id: '/reports',    label: 'Reports',     key: 'F11' },
+  { id: '/tolls',      label: 'Tolls',       key: 'F12' },
 ]
 
 function Clock() {
