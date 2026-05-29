@@ -16,7 +16,9 @@ export default function Fleet() {
   const [editTruck, setEditTruck] = useState(null)
   const [editDriver, setEditDriver] = useState(null)
   const [truckForm, setTruckForm] = useState({ unit_number: '', plate: '', make: '', model: '', year: '2020', vin: '', odometer: '' })
-  const [driverForm, setDriverForm] = useState({ name: '', phone: '', telegram_id: '', license_number: '', license_expiry: '', truck_id: '' })
+  const [driverTab, setDriverTab] = useState('general')
+  const EMPTY_DRIVER = { name: '', first_name: '', last_name: '', phone: '', email: '', date_of_birth: '', address: '', address2: '', city: '', state: '', zip: '', telegram_id: '', license_number: '', license_expiry: '', truck_id: '', trailer: '', fuel_card: '', driver_status: 'hired', driver_type: 'company', application_date: '', hire_date: '', termination_date: '', pay_type: 'per_mile', pay_rate: '', pay_extra_stop: '', pay_empty_mile: '' }
+  const [driverForm, setDriverForm] = useState(EMPTY_DRIVER)
   const [maintForm, setMaintForm] = useState({ truck_id: '', date: '', type: 'oil_change', description: '', cost: '', mileage: '', vendor: '' })
   const [showMaintForm, setShowMaintForm] = useState(false)
 
@@ -25,7 +27,7 @@ export default function Fleet() {
   const { data: maintenance = [] } = useQuery({ queryKey: ['maintenance'], queryFn: () => getMaintenance() })
 
   const createTruckMut = useMutation({ mutationFn: createTruck, onSuccess: () => { qc.invalidateQueries(['trucks']); setShowTruckForm(false); setTruckForm({ unit_number: '', plate: '', make: '', model: '', year: '2020', vin: '', odometer: '' }) } })
-  const createDriverMut = useMutation({ mutationFn: createDriver, onSuccess: () => { qc.invalidateQueries(['drivers']); setShowDriverForm(false); setDriverForm({ name: '', phone: '', telegram_id: '', license_number: '', license_expiry: '', truck_id: '' }) } })
+  const createDriverMut = useMutation({ mutationFn: createDriver, onSuccess: () => { qc.invalidateQueries(['drivers']); setShowDriverForm(false); setDriverForm(EMPTY_DRIVER) } })
   const updateTruckMut = useMutation({ mutationFn: ({ id, data }) => updateTruck(id, data), onSuccess: () => { qc.invalidateQueries(['trucks']); setEditTruck(null) } })
   const updateDriverMut = useMutation({ mutationFn: ({ id, data }) => updateDriver(id, data), onSuccess: () => { qc.invalidateQueries(['drivers']); setEditDriver(null) } })
   const createMaintMut = useMutation({ mutationFn: createMaintenance, onSuccess: () => { qc.invalidateQueries(['maintenance']); setShowMaintForm(false); setMaintForm({ truck_id: '', date: '', type: 'oil_change', description: '', cost: '', mileage: '', vendor: '' }) } })
@@ -136,58 +138,55 @@ export default function Fleet() {
         <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="panel-head" style={{ padding: '10px 16px' }}>
             <span>· DRIVER ROSTER · {drivers.length} ACTIVE</span>
-            <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowDriverForm(true)}>+ ADD DRIVER</span>
+            <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => { setDriverTab('general'); setShowDriverForm(true) }}>+ ADD DRIVER</span>
           </div>
           <div style={{ flex: 1, overflow: 'auto' }}>
-            {drivers.length === 0 && (
+            {drivers.length === 0 ? (
               <div style={{ padding: 16, color: 'var(--ink-mute)', fontSize: 11 }}>NO DRIVERS REGISTERED</div>
+            ) : (
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>NAME</th>
+                    <th>TYPE</th>
+                    <th>STATUS</th>
+                    <th>HIRE DATE</th>
+                    <th>PHONE</th>
+                    <th>EMAIL</th>
+                    <th>TRUCK</th>
+                    <th>CDL EXP</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drivers.map(d => {
+                    const statusColor = d.driver_status === 'hired' ? 'var(--green)' : d.driver_status === 'terminated' ? 'var(--red)' : 'var(--amber)'
+                    const hireDate = d.hire_date ? new Date(d.hire_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'
+                    const cdlExp = d.license_expiry ? (() => {
+                      const exp = new Date(d.license_expiry)
+                      const color = exp < new Date() ? 'var(--red)' : exp < new Date(Date.now() + 90*24*60*60*1000) ? 'var(--amber)' : 'var(--ink-dim)'
+                      return <span style={{ color, fontSize: 10 }}>{d.license_expiry.slice(0,10)}</span>
+                    })() : <span className="t-mute">—</span>
+                    return (
+                      <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => setEditDriver(d)}>
+                        <td>
+                          <div style={{ fontSize: 11 }}>{d.name}</div>
+                          <div className="t-tiny t-mute">DRV·{String(d.id).padStart(3,'0')}</div>
+                        </td>
+                        <td><span className="tag" style={{ fontSize: 9 }}>{d.driver_type === 'owner_operator' ? 'O/O' : 'DRV'}</span></td>
+                        <td><span style={{ fontSize: 10, color: statusColor, fontFamily: 'var(--mono)', textTransform: 'uppercase' }}>{d.driver_status || 'hired'}</span></td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-dim)' }}>{hireDate}</td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-dim)' }}>{d.phone || '—'}</td>
+                        <td style={{ fontSize: 10, color: 'var(--ink-dim)' }}>{d.email || '—'}</td>
+                        <td><span className="t-display" style={{ fontSize: 12, color: 'var(--amber)' }}>{truckMap[d.truck_id] || '—'}</span></td>
+                        <td>{cdlExp}</td>
+                        <td style={{ color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>›</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             )}
-            {drivers.map((d, i) => {
-              const initials = d.name?.split(' ').map(p => p[0]).slice(0,2).join('') || '??'
-              const hasTg = !!d.telegram_id
-              return (
-                <div key={d.id} onClick={() => setEditDriver(d)} style={{
-                  padding: '14px 16px', borderBottom: '1px solid var(--line)',
-                  display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 12, alignItems: 'center',
-                  cursor: 'pointer',
-                }}>
-                  <div style={{
-                    width: 36, height: 36, border: '1px solid var(--line-strong)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--amber)',
-                    background: 'var(--bg-elev)', flexShrink: 0,
-                  }}>
-                    {initials}
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                      <span style={{ color: 'var(--ink)', fontSize: 13 }}>{d.name}</span>
-                      <span className="t-tiny t-mute">DRV·{String(d.id).padStart(3,'0')}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <span className="t-tiny t-dim">{d.phone || '—'}</span>
-                      {d.telegram_id && <><span className="t-tiny t-mute">·</span><span className="t-tiny t-dim">TG·{d.telegram_id}</span></>}
-                    </div>
-                    {d.license_number && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 4, alignItems: 'center' }}>
-                        <span className="t-tiny t-mute">CDL</span>
-                        <span className="t-tiny t-dim">{d.license_number}</span>
-                        {d.license_expiry && (() => {
-                          const exp = new Date(d.license_expiry)
-                          const now = new Date()
-                          const color = exp < now ? 'var(--red)' : exp < new Date(Date.now() + 90*24*60*60*1000) ? 'var(--amber)' : 'var(--ink-mute)'
-                          return <span className="t-tiny" style={{ color }}>· EXP {d.license_expiry?.slice(0, 10)}</span>
-                        })()}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="t-display" style={{ fontSize: 14, color: 'var(--amber)' }}>{truckMap[d.truck_id] || '—'}</div>
-                    {!hasTg && <div className="tag red" style={{ marginTop: 4 }}>NO TG</div>}
-                  </div>
-                </div>
-              )
-            })}
           </div>
         </div>
 
@@ -292,56 +291,63 @@ export default function Fleet() {
 
       {/* ADD DRIVER MODAL */}
       {showDriverForm && (
-        <FormModal title="· NEW DRIVER ENTRY" onClose={() => setShowDriverForm(false)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['name','Full Name *'], ['phone','Phone'], ['telegram_id','Telegram ID (numeric)'], ['license_number','CDL License #']].map(([key, label]) => (
-              <div key={key}>
-                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
-                <input value={driverForm[key]} onChange={e => setDriverForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
-              </div>
-            ))}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Assign Truck</div>
-              <select value={driverForm.truck_id} onChange={e => setDriverForm(f => ({ ...f, truck_id: e.target.value }))} style={selectStyle}>
-                <option value="">— UNASSIGNED —</option>
-                {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}</option>)}
-              </select>
-            </div>
-          </div>
-          <button onClick={() => createDriverMut.mutate({ ...driverForm, truck_id: driverForm.truck_id ? parseInt(driverForm.truck_id) : null })}
-            className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
-            ▸ ADD DRIVER
-          </button>
-        </FormModal>
+        <DriverFormModal
+          title="· NEW DRIVER"
+          form={driverForm}
+          setForm={setDriverForm}
+          tab={driverTab}
+          setTab={setDriverTab}
+          trucks={trucks}
+          onClose={() => { setShowDriverForm(false); setDriverForm(EMPTY_DRIVER) }}
+          onSave={() => createDriverMut.mutate({
+            ...driverForm,
+            truck_id: driverForm.truck_id ? parseInt(driverForm.truck_id) : null,
+            pay_rate: parseFloat(driverForm.pay_rate) || null,
+            pay_extra_stop: parseFloat(driverForm.pay_extra_stop) || null,
+            pay_empty_mile: parseFloat(driverForm.pay_empty_mile) || null,
+            hire_date: driverForm.hire_date || null,
+            application_date: driverForm.application_date || null,
+            license_expiry: driverForm.license_expiry || null,
+          })}
+          saving={createDriverMut.isPending}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+        />
       )}
 
       {/* EDIT DRIVER MODAL */}
       {editDriver && (
-        <FormModal title={`· EDIT ${editDriver.name}`} onClose={() => setEditDriver(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['name','Full Name'], ['phone','Phone'], ['telegram_id','Telegram ID'], ['license_number','CDL License #']].map(([key, label]) => (
-              <div key={key}>
-                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
-                <input value={editDriver[key] || ''} onChange={e => setEditDriver(d => ({ ...d, [key]: e.target.value }))} style={inputStyle} />
-              </div>
-            ))}
-            <div>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>CDL Expiry Date</div>
-              <input type="date" value={editDriver.license_expiry ? editDriver.license_expiry.slice(0,10) : ''} onChange={e => setEditDriver(d => ({ ...d, license_expiry: e.target.value }))} style={inputStyle} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Assign Truck</div>
-              <select value={editDriver.truck_id || ''} onChange={e => setEditDriver(d => ({ ...d, truck_id: e.target.value }))} style={selectStyle}>
-                <option value="">— UNASSIGNED —</option>
-                {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}</option>)}
-              </select>
-            </div>
-          </div>
-          <button onClick={() => updateDriverMut.mutate({ id: editDriver.id, data: { name: editDriver.name, phone: editDriver.phone, telegram_id: editDriver.telegram_id, license_number: editDriver.license_number, license_expiry: editDriver.license_expiry || null, truck_id: editDriver.truck_id ? parseInt(editDriver.truck_id) : null } })}
-            className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
-            ▸ SAVE CHANGES
-          </button>
-        </FormModal>
+        <DriverFormModal
+          title={`· EDIT ${editDriver.name}`}
+          form={editDriver}
+          setForm={setEditDriver}
+          tab={driverTab}
+          setTab={setDriverTab}
+          trucks={trucks}
+          onClose={() => setEditDriver(null)}
+          onSave={() => updateDriverMut.mutate({
+            id: editDriver.id,
+            data: {
+              name: editDriver.name, first_name: editDriver.first_name, last_name: editDriver.last_name,
+              phone: editDriver.phone, email: editDriver.email,
+              address: editDriver.address, city: editDriver.city, state: editDriver.state, zip: editDriver.zip,
+              telegram_id: editDriver.telegram_id, license_number: editDriver.license_number,
+              license_expiry: editDriver.license_expiry || null,
+              truck_id: editDriver.truck_id ? parseInt(editDriver.truck_id) : null,
+              trailer: editDriver.trailer, fuel_card: editDriver.fuel_card,
+              driver_status: editDriver.driver_status, driver_type: editDriver.driver_type,
+              hire_date: editDriver.hire_date || null, application_date: editDriver.application_date || null,
+              termination_date: editDriver.termination_date || null,
+              pay_type: editDriver.pay_type,
+              pay_rate: parseFloat(editDriver.pay_rate) || null,
+              pay_extra_stop: parseFloat(editDriver.pay_extra_stop) || null,
+              pay_empty_mile: parseFloat(editDriver.pay_empty_mile) || null,
+            }
+          })}
+          saving={updateDriverMut.isPending}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+        />
       )}
 
       {/* MAINTENANCE FORM MODAL */}
@@ -395,6 +401,155 @@ function FormModal({ title, onClose, children }) {
           <button onClick={onClose} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
         </div>
         {children}
+      </div>
+    </div>
+  )
+}
+
+const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+
+function DriverFormModal({ title, form, setForm, tab, setTab, trucks, onClose, onSave, saving, inputStyle, selectStyle }) {
+  const F = (key, label, type = 'text') => (
+    <div key={key}>
+      <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
+      <input type={type} value={form[key] || ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
+    </div>
+  )
+  const tabs = ['general', 'address', 'employment', 'pay']
+  const tabLabel = { general: 'General', address: 'Address', employment: 'Employment', pay: 'Pay Rates' }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#000000bb', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', padding: 24, width: 680, maxHeight: '90vh', overflowY: 'auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+          <span className="t-tiny t-up t-dim">{title}</span>
+          <button onClick={onClose} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--line)' }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ padding: '7px 16px', background: 'none', border: 'none', borderBottom: tab === t ? '2px solid var(--amber)' : '2px solid transparent', color: tab === t ? 'var(--amber)' : 'var(--ink-mute)', fontFamily: 'var(--mono)', fontSize: 11, cursor: 'pointer', marginBottom: -1 }}>
+              {tabLabel[t]}
+            </button>
+          ))}
+        </div>
+
+        {/* General */}
+        {tab === 'general' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {F('first_name', 'First Name')}
+            {F('last_name', 'Last Name')}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Full Name *</div>
+              <input value={form.name || ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={inputStyle} placeholder="Full name" />
+            </div>
+            {F('phone', 'Phone', 'tel')}
+            {F('email', 'Email', 'email')}
+            {F('date_of_birth', 'Date of Birth', 'date')}
+            {F('telegram_id', 'Telegram ID')}
+            {F('license_number', 'CDL License #')}
+            {F('license_expiry', 'CDL Expiry', 'date')}
+          </div>
+        )}
+
+        {/* Address */}
+        {tab === 'address' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ gridColumn: '1 / -1' }}>{F('address', 'Address')}</div>
+            <div style={{ gridColumn: '1 / -1' }}>{F('address2', 'Address Line 2')}</div>
+            {F('city', 'City')}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>State</div>
+              <select value={form.state || ''} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} style={selectStyle}>
+                <option value="">—</option>
+                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            {F('zip', 'ZIP')}
+          </div>
+        )}
+
+        {/* Employment */}
+        {tab === 'employment' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Status</div>
+              <select value={form.driver_status || 'hired'} onChange={e => setForm(f => ({ ...f, driver_status: e.target.value }))} style={selectStyle}>
+                <option value="applicant">Applicant</option>
+                <option value="hired">Hired</option>
+                <option value="terminated">Terminated</option>
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Driver Type</div>
+              <select value={form.driver_type || 'company'} onChange={e => setForm(f => ({ ...f, driver_type: e.target.value }))} style={selectStyle}>
+                <option value="company">Company Driver</option>
+                <option value="owner_operator">Owner Operator</option>
+              </select>
+            </div>
+            {F('application_date', 'Application Date', 'date')}
+            {F('hire_date', 'Hire Date', 'date')}
+            {F('termination_date', 'Term Date', 'date')}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Assign Truck</div>
+              <select value={form.truck_id || ''} onChange={e => setForm(f => ({ ...f, truck_id: e.target.value }))} style={selectStyle}>
+                <option value="">— Unassigned —</option>
+                {trucks.map(t => <option key={t.id} value={t.id}>{t.unit_number}</option>)}
+              </select>
+            </div>
+            {F('trailer', 'Trailer #')}
+            {F('fuel_card', 'Fuel Card #')}
+          </div>
+        )}
+
+        {/* Pay Rates */}
+        {tab === 'pay' && (
+          <div>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+              {[['company','Company Driver'], ['owner_operator','Owner Operator']].map(([val, label]) => (
+                <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: form.driver_type === val ? 'var(--amber)' : 'var(--ink-mute)' }}>
+                  <input type="radio" checked={form.driver_type === val} onChange={() => setForm(f => ({ ...f, driver_type: val }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+              {[['per_mile','Per Mile'], ['freight_percentage','Freight %'], ['flatpay','Flatpay'], ['hourly','Hourly']].map(([val, label]) => (
+                <label key={val} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: form.pay_type === val ? 'var(--amber)' : 'var(--ink-mute)' }}>
+                  <input type="radio" checked={form.pay_type === val} onChange={() => setForm(f => ({ ...f, pay_type: val }))} />
+                  {label}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>
+                  {form.pay_type === 'per_mile' ? 'Per Mile ($)' : form.pay_type === 'freight_percentage' ? 'Freight % (0-100)' : form.pay_type === 'flatpay' ? 'Flat Pay ($)' : 'Hourly Rate ($)'}
+                </div>
+                <input type="number" value={form.pay_rate || ''} onChange={e => setForm(f => ({ ...f, pay_rate: e.target.value }))} style={inputStyle} placeholder="0.00" />
+              </div>
+              <div>
+                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Per Extra Stop ($)</div>
+                <input type="number" value={form.pay_extra_stop || ''} onChange={e => setForm(f => ({ ...f, pay_extra_stop: e.target.value }))} style={inputStyle} placeholder="0.00" />
+              </div>
+              <div>
+                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Per Empty Mile ($)</div>
+                <input type="number" value={form.pay_empty_mile || ''} onChange={e => setForm(f => ({ ...f, pay_empty_mile: e.target.value }))} style={inputStyle} placeholder="0.00" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={onSave} disabled={saving || !form.name}
+            className="btn primary" style={{ flex: 1, justifyContent: 'center', padding: 10 }}>
+            {saving ? 'Saving...' : '+ Save Driver'}
+          </button>
+          <button onClick={onClose} className="btn" style={{ padding: '10px 18px' }}>Close</button>
+        </div>
       </div>
     </div>
   )

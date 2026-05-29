@@ -12,20 +12,60 @@ router = APIRouter(prefix="/drivers", tags=["drivers"])
 
 class DriverCreate(BaseModel):
     name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    address: Optional[str] = None
+    address2: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
     telegram_id: Optional[str] = None
     license_number: Optional[str] = None
     license_expiry: Optional[datetime] = None
     truck_id: Optional[int] = None
+    trailer: Optional[str] = None
+    fuel_card: Optional[str] = None
+    driver_status: Optional[str] = "hired"
+    driver_type: Optional[str] = "company"
+    application_date: Optional[datetime] = None
+    hire_date: Optional[datetime] = None
+    termination_date: Optional[datetime] = None
+    pay_type: Optional[str] = "per_mile"
+    pay_rate: Optional[float] = None
+    pay_extra_stop: Optional[float] = None
+    pay_empty_mile: Optional[float] = None
 
 
 class DriverUpdate(BaseModel):
     name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone: Optional[str] = None
+    email: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    address: Optional[str] = None
+    address2: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip: Optional[str] = None
     telegram_id: Optional[str] = None
     license_number: Optional[str] = None
     license_expiry: Optional[datetime] = None
     truck_id: Optional[int] = None
+    trailer: Optional[str] = None
+    fuel_card: Optional[str] = None
+    driver_status: Optional[str] = None
+    driver_type: Optional[str] = None
+    application_date: Optional[datetime] = None
+    hire_date: Optional[datetime] = None
+    termination_date: Optional[datetime] = None
+    pay_type: Optional[str] = None
+    pay_rate: Optional[float] = None
+    pay_extra_stop: Optional[float] = None
+    pay_empty_mile: Optional[float] = None
     is_active: Optional[bool] = None
 
 
