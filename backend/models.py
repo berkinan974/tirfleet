@@ -169,6 +169,59 @@ class Load(Base):
     documents  = relationship("LoadDocument", back_populates="load")
 
 
+class Partner(Base):
+    __tablename__ = "partners"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    company_id     = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    name           = Column(String, nullable=False)
+    partner_type   = Column(String, default="broker")   # broker | shipper_receiver
+    address        = Column(String)
+    address2       = Column(String)
+    city           = Column(String)
+    state          = Column(String)
+    zip            = Column(String)
+    phone          = Column(String)
+    email          = Column(String)
+    fid_ein        = Column(String)
+    mc_number      = Column(String)
+    pay_method     = Column(String)
+    credit         = Column(String)
+    avg_dtp        = Column(Float)
+    billing_type   = Column(String, default="factoring")  # direct | factoring
+    quickpay_fee   = Column(Float)
+    status         = Column(String, default="pending")    # pending | active | inactive
+    pay_terms      = Column(String)
+    notes          = Column(Text)
+    is_active      = Column(Boolean, default=True)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Vendor(Base):
+    __tablename__ = "vendors"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    company_id          = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    name                = Column(String, nullable=False)
+    vendor_type         = Column(String)
+    address             = Column(String)
+    address2            = Column(String)
+    city                = Column(String)
+    state               = Column(String)
+    zip                 = Column(String)
+    phone               = Column(String)
+    email               = Column(String)
+    fid_ein             = Column(String)
+    mc_number           = Column(String)
+    additional_payee    = Column(Boolean, default=False)
+    equipment_owner     = Column(Boolean, default=False)
+    payee_rate          = Column(Float)
+    settlement_template = Column(String)
+    notes               = Column(Text)
+    is_active           = Column(Boolean, default=True)
+    created_at          = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class FactoringRecord(Base):
     __tablename__ = "factoring_records"
 

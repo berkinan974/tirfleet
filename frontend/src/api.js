@@ -75,6 +75,16 @@ export const searchDatLoads = (origin, destination, equipment = 'Van') =>
 export const getDatRates = (origin, destination, equipment = 'Van') =>
   api.get('/dat/rates', { params: { origin, destination, equipment } }).then(r => r.data)
 
+export const getPartners = (type) => api.get('/partners/' + (type ? `?partner_type=${type}` : '')).then(r => r.data)
+export const createPartner = (data) => api.post('/partners/', data).then(r => r.data)
+export const updatePartner = (id, data) => api.patch(`/partners/${id}`, data).then(r => r.data)
+export const deletePartner = (id) => api.delete(`/partners/${id}`).then(r => r.data)
+
+export const getVendors = () => api.get('/vendors/').then(r => r.data)
+export const createVendor = (data) => api.post('/vendors/', data).then(r => r.data)
+export const updateVendor = (id, data) => api.patch(`/vendors/${id}`, data).then(r => r.data)
+export const deleteVendor = (id) => api.delete(`/vendors/${id}`).then(r => r.data)
+
 export const getFactoring = () => api.get('/factoring/').then(r => r.data)
 export const getFactoringSummary = () => api.get('/factoring/summary').then(r => r.data)
 export const getUninvoicedLoads = () => api.get('/factoring/uninvoiced').then(r => r.data)

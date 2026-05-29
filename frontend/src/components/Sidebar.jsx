@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Truck, ClipboardCheck, Package } from 'lucide-react'
+import { LayoutDashboard, Truck, ClipboardCheck, Package, Users } from 'lucide-react'
 
 const links = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/fleet', icon: Truck, label: 'Fleet' },
   { to: '/pti', icon: ClipboardCheck, label: 'PTI' },
   { to: '/loads', icon: Package, label: 'Loads' },
+  { to: '/partners', icon: Users, label: 'Partners' },
 ]
 
 export default function Sidebar() {
