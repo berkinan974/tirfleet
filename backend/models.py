@@ -54,24 +54,58 @@ class LoadStatus(str, enum.Enum):
 class Truck(Base):
     __tablename__ = "trucks"
 
-    id          = Column(Integer, primary_key=True, index=True)
-    company_id  = Column(Integer, ForeignKey("companies.id"), nullable=True)
-    unit_number = Column(String, nullable=False)
-    plate       = Column(String, nullable=False)
-    make        = Column(String)
-    model       = Column(String)
-    year        = Column(Integer)
-    vin         = Column(String)
-    fuel_level  = Column(Integer, default=100)
-    odometer    = Column(Integer, default=0)
-    status      = Column(Enum(TruckStatus), default=TruckStatus.active)
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    id             = Column(Integer, primary_key=True, index=True)
+    company_id     = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    unit_number    = Column(String, nullable=False)
+    plate          = Column(String, nullable=False)
+    plate_state    = Column(String)
+    make           = Column(String)
+    model          = Column(String)
+    year           = Column(Integer)
+    vin            = Column(String)
+    fuel_level     = Column(Integer, default=100)
+    odometer       = Column(Integer, default=0)
+    status         = Column(Enum(TruckStatus), default=TruckStatus.active)
+    eld_provider   = Column(String)
+    eld_id         = Column(String)
+    ownership      = Column(String, default="owned")
+    purchase_date  = Column(DateTime)
+    purchase_price = Column(Float)
+    history        = Column(Text)
+    notes          = Column(Text)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
 
     company          = relationship("Company", back_populates="trucks")
     driver           = relationship("Driver", back_populates="truck", uselist=False)
     pti_records      = relationship("PTIRecord", back_populates="truck")
     loads            = relationship("Load", back_populates="truck")
     maintenance_logs = relationship("MaintenanceLog", back_populates="truck")
+
+
+class Trailer(Base):
+    __tablename__ = "trailers"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    company_id     = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    unit_number    = Column(String, nullable=False)
+    trailer_type   = Column(String)
+    vin            = Column(String)
+    year           = Column(Integer)
+    make           = Column(String)
+    model          = Column(String)
+    driver_id      = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    plate          = Column(String)
+    plate_state    = Column(String)
+    ownership      = Column(String, default="owned")
+    purchase_date  = Column(DateTime)
+    purchase_price = Column(Float)
+    notes          = Column(Text)
+    history        = Column(Text)
+    status         = Column(String, default="active")
+    is_active      = Column(Boolean, default=True)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+    driver = relationship("Driver", foreign_keys=[driver_id])
 
 
 class Driver(Base):

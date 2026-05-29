@@ -85,6 +85,11 @@ export const createVendor = (data) => api.post('/vendors/', data).then(r => r.da
 export const updateVendor = (id, data) => api.patch(`/vendors/${id}`, data).then(r => r.data)
 export const deleteVendor = (id) => api.delete(`/vendors/${id}`).then(r => r.data)
 
+export const getTrailers = () => api.get('/trailers/').then(r => r.data)
+export const createTrailer = (data) => api.post('/trailers/', data).then(r => r.data)
+export const updateTrailer = (id, data) => api.patch(`/trailers/${id}`, data).then(r => r.data)
+export const deleteTrailer = (id) => api.delete(`/trailers/${id}`).then(r => r.data)
+
 export const getFactoring = () => api.get('/factoring/').then(r => r.data)
 export const getFactoringSummary = () => api.get('/factoring/summary').then(r => r.data)
 export const getUninvoicedLoads = () => api.get('/factoring/uninvoiced').then(r => r.data)

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getTrucks, getDrivers, createTruck, createDriver, updateTruck, updateDriver, getMaintenance, createMaintenance, deleteMaintenance } from '../api'
+import { getTrucks, getDrivers, createTruck, createDriver, updateTruck, updateDriver, getMaintenance, createMaintenance, deleteMaintenance, getTrailers, createTrailer, updateTrailer, deleteTrailer } from '../api'
 import { useState } from 'react'
 import Ticker from '../components/Ticker'
 
@@ -11,11 +11,19 @@ const STATUS_MAP = {
 
 export default function Fleet() {
   const qc = useQueryClient()
+  const [equipTab, setEquipTab] = useState('trucks')
   const [showTruckForm, setShowTruckForm] = useState(false)
   const [showDriverForm, setShowDriverForm] = useState(false)
+  const [showTrailerForm, setShowTrailerForm] = useState(false)
   const [editTruck, setEditTruck] = useState(null)
   const [editDriver, setEditDriver] = useState(null)
-  const [truckForm, setTruckForm] = useState({ unit_number: '', plate: '', make: '', model: '', year: '2020', vin: '', odometer: '' })
+  const [editTrailer, setEditTrailer] = useState(null)
+  const [truckTab, setTruckTab] = useState('general')
+  const EMPTY_TRUCK = { unit_number: '', plate: '', plate_state: '', make: '', model: '', year: '2020', vin: '', odometer: '', eld_provider: '', eld_id: '', ownership: 'owned', purchase_date: '', purchase_price: '', history: '', notes: '' }
+  const [truckForm, setTruckForm] = useState(EMPTY_TRUCK)
+  const EMPTY_TRAILER = { unit_number: '', trailer_type: '', vin: '', year: '', make: '', model: '', driver_id: '', plate: '', plate_state: '', ownership: 'owned', purchase_date: '', purchase_price: '', notes: '', history: '', status: 'active' }
+  const [trailerForm, setTrailerForm] = useState(EMPTY_TRAILER)
+  const [trailerTab, setTrailerTab] = useState('general')
   const [driverTab, setDriverTab] = useState('general')
   const EMPTY_DRIVER = { name: '', first_name: '', last_name: '', phone: '', email: '', date_of_birth: '', address: '', address2: '', city: '', state: '', zip: '', telegram_id: '', license_number: '', license_expiry: '', truck_id: '', trailer: '', fuel_card: '', driver_status: 'hired', driver_type: 'company', application_date: '', hire_date: '', termination_date: '', pay_type: 'per_mile', pay_rate: '', pay_extra_stop: '', pay_empty_mile: '' }
   const [driverForm, setDriverForm] = useState(EMPTY_DRIVER)
@@ -24,10 +32,14 @@ export default function Fleet() {
 
   const { data: trucks = [] } = useQuery({ queryKey: ['trucks'], queryFn: getTrucks })
   const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers })
+  const { data: trailers = [] } = useQuery({ queryKey: ['trailers'], queryFn: getTrailers })
   const { data: maintenance = [] } = useQuery({ queryKey: ['maintenance'], queryFn: () => getMaintenance() })
 
-  const createTruckMut = useMutation({ mutationFn: createTruck, onSuccess: () => { qc.invalidateQueries(['trucks']); setShowTruckForm(false); setTruckForm({ unit_number: '', plate: '', make: '', model: '', year: '2020', vin: '', odometer: '' }) } })
+  const createTruckMut = useMutation({ mutationFn: createTruck, onSuccess: () => { qc.invalidateQueries(['trucks']); setShowTruckForm(false); setTruckForm(EMPTY_TRUCK) } })
   const createDriverMut = useMutation({ mutationFn: createDriver, onSuccess: () => { qc.invalidateQueries(['drivers']); setShowDriverForm(false); setDriverForm(EMPTY_DRIVER) } })
+  const createTrailerMut = useMutation({ mutationFn: createTrailer, onSuccess: () => { qc.invalidateQueries(['trailers']); setShowTrailerForm(false); setTrailerForm(EMPTY_TRAILER) } })
+  const updateTrailerMut = useMutation({ mutationFn: ({ id, data }) => updateTrailer(id, data), onSuccess: () => { qc.invalidateQueries(['trailers']); setEditTrailer(null) } })
+  const deleteTrailerMut = useMutation({ mutationFn: deleteTrailer, onSuccess: () => qc.invalidateQueries(['trailers']) })
   const updateTruckMut = useMutation({ mutationFn: ({ id, data }) => updateTruck(id, data), onSuccess: () => { qc.invalidateQueries(['trucks']); setEditTruck(null) } })
   const updateDriverMut = useMutation({ mutationFn: ({ id, data }) => updateDriver(id, data), onSuccess: () => { qc.invalidateQueries(['drivers']); setEditDriver(null) } })
   const createMaintMut = useMutation({ mutationFn: createMaintenance, onSuccess: () => { qc.invalidateQueries(['maintenance']); setShowMaintForm(false); setMaintForm({ truck_id: '', date: '', type: 'oil_change', description: '', cost: '', mileage: '', vendor: '' }) } })
@@ -58,14 +70,27 @@ export default function Fleet() {
 
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr) 320px', minHeight: 0, overflow: 'hidden' }}>
 
-        {/* TRUCKS */}
+        {/* EQUIPMENT — TRUCKS / TRAILERS */}
         <div style={{ borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="panel-head" style={{ padding: '10px 16px' }}>
-            <span>· TRUCK ROSTER · {trucks.length} UNITS</span>
-            <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }} onClick={() => setShowTruckForm(true)}>+ ADD UNIT</span>
+            <span>· EQUIPMENT · {equipTab === 'trucks' ? `${trucks.length} TRUCKS` : `${trailers.length} TRAILERS`}</span>
+            <span className="ph-r" style={{ cursor: 'pointer', color: 'var(--amber)' }}
+              onClick={() => equipTab === 'trucks' ? setShowTruckForm(true) : setShowTrailerForm(true)}>
+              + ADD {equipTab === 'trucks' ? 'TRUCK' : 'TRAILER'}
+            </span>
+          </div>
+          {/* sub-tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+            {[['trucks','TRUCKS'], ['trailers','TRAILERS']].map(([key, label]) => (
+              <button key={key} onClick={() => setEquipTab(key)}
+                style={{ padding: '7px 16px', background: 'none', border: 'none', borderBottom: equipTab === key ? '2px solid var(--amber)' : '2px solid transparent', color: equipTab === key ? 'var(--amber)' : 'var(--ink-mute)', fontFamily: 'var(--mono)', fontSize: 10, cursor: 'pointer', marginBottom: -1 }}>
+                {label}
+              </button>
+            ))}
           </div>
           <div style={{ flex: 1, overflow: 'auto' }}>
-            {trucks.length === 0 ? (
+            {/* TRUCKS TABLE */}
+            {equipTab === 'trucks' && (trucks.length === 0 ? (
               <div style={{ padding: 24, color: 'var(--ink-mute)', fontSize: 11 }}>NO UNITS REGISTERED</div>
             ) : (
               <table className="tbl">
@@ -85,7 +110,7 @@ export default function Fleet() {
                   {trucks.map(t => {
                     const [tone, label] = STATUS_MAP[t.status] || ['', t.status?.toUpperCase()]
                     return (
-                      <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => setEditTruck(t)}>
+                      <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => { setTruckTab('general'); setEditTruck(t) }}>
                         <td>
                           <div className="t-display" style={{ fontSize: 14, color: 'var(--ink)' }}>{t.unit_number}</div>
                           {t.vin && <div className="t-tiny t-mute" style={{ marginTop: 2 }}>{t.vin}</div>}
@@ -96,7 +121,7 @@ export default function Fleet() {
                             <span className="t-tiny t-mute">{t.fuel_level ?? 100}%</span>
                           </div>
                         </td>
-                        <td className="t-dim">{t.plate || '—'}</td>
+                        <td className="t-dim">{t.plate || '—'}{t.plate_state ? <span className="t-tiny t-mute"> {t.plate_state}</span> : null}</td>
                         <td>
                           <div>{t.make || '—'}</div>
                           {t.model && <div className="t-tiny t-mute">{t.model}</div>}
@@ -113,7 +138,50 @@ export default function Fleet() {
                   })}
                 </tbody>
               </table>
-            )}
+            ))}
+            {/* TRAILERS TABLE */}
+            {equipTab === 'trailers' && (trailers.length === 0 ? (
+              <div style={{ padding: 24, color: 'var(--ink-mute)', fontSize: 11 }}>NO TRAILERS REGISTERED</div>
+            ) : (
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Unit</th>
+                    <th>Type</th>
+                    <th>Make / Model</th>
+                    <th>VIN</th>
+                    <th>Driver</th>
+                    <th>Plate</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trailers.map(tr => (
+                    <tr key={tr.id} style={{ cursor: 'pointer' }} onClick={() => { setTrailerTab('general'); setEditTrailer(tr) }}>
+                      <td>
+                        <div className="t-display" style={{ fontSize: 14, color: 'var(--ink)' }}>{tr.unit_number}</div>
+                        {tr.year && <div className="t-tiny t-mute" style={{ marginTop: 2 }}>{tr.year}</div>}
+                      </td>
+                      <td className="t-dim">{tr.trailer_type || '—'}</td>
+                      <td>
+                        <div>{tr.make || '—'}</div>
+                        {tr.model && <div className="t-tiny t-mute">{tr.model}</div>}
+                      </td>
+                      <td className="t-dim" style={{ fontSize: 10 }}>{tr.vin || '—'}</td>
+                      <td className="t-dim">{tr.driver_name || '—'}</td>
+                      <td className="t-dim">{tr.plate || '—'}{tr.plate_state ? ` ${tr.plate_state}` : ''}</td>
+                      <td>
+                        <span className={`tag ${tr.status === 'active' ? 'green' : tr.status === 'maintenance' ? 'red' : ''}`}>
+                          {(tr.status || 'active').toUpperCase()}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--ink-mute)', fontFamily: 'var(--mono)' }}>›</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ))}
           </div>
           <div style={{ borderTop: '1px solid var(--line)', padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, background: 'var(--bg-elev)', flexShrink: 0 }}>
             <div>
@@ -239,54 +307,70 @@ export default function Fleet() {
 
       {/* ADD TRUCK MODAL */}
       {showTruckForm && (
-        <FormModal title="· NEW UNIT ENTRY" onClose={() => setShowTruckForm(false)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['unit_number','Unit Number *'], ['plate','Plate *'], ['make','Make'], ['model','Model'], ['year','Year'], ['vin','VIN (opt)']].map(([key, label]) => (
-              <div key={key}>
-                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
-                <input value={truckForm[key]} onChange={e => setTruckForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
-              </div>
-            ))}
-          </div>
-          <button onClick={() => createTruckMut.mutate({ ...truckForm, year: parseInt(truckForm.year) || null })}
-            className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
-            ▸ ADD TRUCK
-          </button>
-        </FormModal>
+        <TruckFormModal
+          title="· NEW TRUCK ENTRY"
+          form={truckForm}
+          setForm={setTruckForm}
+          tab={truckTab}
+          setTab={setTruckTab}
+          isNew
+          onClose={() => { setShowTruckForm(false); setTruckForm(EMPTY_TRUCK) }}
+          onSave={() => createTruckMut.mutate({ ...truckForm, year: parseInt(truckForm.year) || null, purchase_price: parseFloat(truckForm.purchase_price) || null })}
+          saving={createTruckMut.isPending}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+        />
       )}
 
       {/* EDIT TRUCK MODAL */}
       {editTruck && (
-        <FormModal title={`· EDIT ${editTruck.unit_number}`} onClose={() => setEditTruck(null)}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['plate','Plate'], ['make','Make'], ['model','Model'], ['vin','VIN']].map(([key, label]) => (
-              <div key={key}>
-                <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
-                <input value={editTruck[key] || ''} onChange={e => setEditTruck(t => ({ ...t, [key]: e.target.value }))} style={inputStyle} />
-              </div>
-            ))}
-            <div>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Status</div>
-              <select value={editTruck.status} onChange={e => setEditTruck(t => ({ ...t, status: e.target.value }))} style={selectStyle}>
-                <option value="active">ACTIVE</option>
-                <option value="maintenance">SHOP</option>
-                <option value="inactive">IDLE</option>
-              </select>
-            </div>
-            <div>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Fuel Level %</div>
-              <input type="number" min="0" max="100" value={editTruck.fuel_level ?? 100} onChange={e => setEditTruck(t => ({ ...t, fuel_level: parseInt(e.target.value) || 0 }))} style={inputStyle} />
-            </div>
-            <div>
-              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Odometer (MI)</div>
-              <input type="number" min="0" value={editTruck.odometer ?? 0} onChange={e => setEditTruck(t => ({ ...t, odometer: parseInt(e.target.value) || 0 }))} style={inputStyle} />
-            </div>
-          </div>
-          <button onClick={() => updateTruckMut.mutate({ id: editTruck.id, data: { plate: editTruck.plate, make: editTruck.make, model: editTruck.model, vin: editTruck.vin, status: editTruck.status, fuel_level: editTruck.fuel_level, odometer: editTruck.odometer } })}
-            className="btn primary" style={{ marginTop: 20, width: '100%', justifyContent: 'center', padding: 10 }}>
-            ▸ SAVE CHANGES
-          </button>
-        </FormModal>
+        <TruckFormModal
+          title={`· EDIT ${editTruck.unit_number}`}
+          form={editTruck}
+          setForm={setEditTruck}
+          tab={truckTab}
+          setTab={setTruckTab}
+          onClose={() => setEditTruck(null)}
+          onSave={() => updateTruckMut.mutate({ id: editTruck.id, data: { plate: editTruck.plate, plate_state: editTruck.plate_state, make: editTruck.make, model: editTruck.model, year: parseInt(editTruck.year) || null, vin: editTruck.vin, status: editTruck.status, fuel_level: editTruck.fuel_level, odometer: editTruck.odometer, eld_provider: editTruck.eld_provider, eld_id: editTruck.eld_id, ownership: editTruck.ownership, purchase_date: editTruck.purchase_date || null, purchase_price: parseFloat(editTruck.purchase_price) || null, history: editTruck.history, notes: editTruck.notes } })}
+          saving={updateTruckMut.isPending}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+        />
+      )}
+
+      {/* ADD TRAILER MODAL */}
+      {showTrailerForm && (
+        <TrailerFormModal
+          title="· NEW TRAILER ENTRY"
+          form={trailerForm}
+          setForm={setTrailerForm}
+          tab={trailerTab}
+          setTab={setTrailerTab}
+          drivers={drivers}
+          isNew
+          onClose={() => { setShowTrailerForm(false); setTrailerForm(EMPTY_TRAILER) }}
+          onSave={() => createTrailerMut.mutate({ ...trailerForm, year: parseInt(trailerForm.year) || null, driver_id: trailerForm.driver_id ? parseInt(trailerForm.driver_id) : null, purchase_price: parseFloat(trailerForm.purchase_price) || null })}
+          saving={createTrailerMut.isPending}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+        />
+      )}
+
+      {/* EDIT TRAILER MODAL */}
+      {editTrailer && (
+        <TrailerFormModal
+          title={`· EDIT TRAILER ${editTrailer.unit_number}`}
+          form={editTrailer}
+          setForm={setEditTrailer}
+          tab={trailerTab}
+          setTab={setTrailerTab}
+          drivers={drivers}
+          onClose={() => setEditTrailer(null)}
+          onSave={() => updateTrailerMut.mutate({ id: editTrailer.id, data: { unit_number: editTrailer.unit_number, trailer_type: editTrailer.trailer_type, vin: editTrailer.vin, year: parseInt(editTrailer.year) || null, make: editTrailer.make, model: editTrailer.model, driver_id: editTrailer.driver_id ? parseInt(editTrailer.driver_id) : null, plate: editTrailer.plate, plate_state: editTrailer.plate_state, ownership: editTrailer.ownership, purchase_date: editTrailer.purchase_date || null, purchase_price: parseFloat(editTrailer.purchase_price) || null, notes: editTrailer.notes, history: editTrailer.history, status: editTrailer.status } })}
+          saving={updateTrailerMut.isPending}
+          inputStyle={inputStyle}
+          selectStyle={selectStyle}
+        />
       )}
 
       {/* ADD DRIVER MODAL */}
@@ -407,6 +491,211 @@ function FormModal({ title, onClose, children }) {
 }
 
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
+
+function TruckFormModal({ title, form, setForm, tab, setTab, isNew, onClose, onSave, saving, inputStyle, selectStyle }) {
+  const F = (key, label, type = 'text') => (
+    <div key={key}>
+      <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
+      <input type={type} value={form[key] || ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
+    </div>
+  )
+  const tabs = ['general', 'details', 'notes']
+  const tabLabel = { general: 'General', details: 'ELD / Purchase', notes: 'Notes / History' }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#000000bb', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', padding: 24, width: 680, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+          <span className="t-tiny t-up t-dim">{title}</span>
+          <button onClick={onClose} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
+        </div>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--line)' }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ padding: '7px 16px', background: 'none', border: 'none', borderBottom: tab === t ? '2px solid var(--amber)' : '2px solid transparent', color: tab === t ? 'var(--amber)' : 'var(--ink-mute)', fontFamily: 'var(--mono)', fontSize: 11, cursor: 'pointer', marginBottom: -1 }}>
+              {tabLabel[t]}
+            </button>
+          ))}
+        </div>
+        {tab === 'general' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {isNew && F('unit_number', 'Unit Number *')}
+            {F('make', 'Make')}
+            {F('model', 'Model')}
+            {F('year', 'Year', 'number')}
+            {F('vin', 'VIN')}
+            {F('plate', 'Plate')}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Plate State</div>
+              <select value={form.plate_state || ''} onChange={e => setForm(f => ({ ...f, plate_state: e.target.value }))} style={selectStyle}>
+                <option value="">—</option>
+                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Status</div>
+              <select value={form.status || 'active'} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={selectStyle}>
+                <option value="active">ACTIVE</option>
+                <option value="maintenance">SHOP</option>
+                <option value="inactive">IDLE</option>
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Fuel Level %</div>
+              <input type="number" min="0" max="100" value={form.fuel_level ?? 100} onChange={e => setForm(f => ({ ...f, fuel_level: parseInt(e.target.value) || 0 }))} style={inputStyle} />
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Odometer (MI)</div>
+              <input type="number" min="0" value={form.odometer ?? 0} onChange={e => setForm(f => ({ ...f, odometer: parseInt(e.target.value) || 0 }))} style={inputStyle} />
+            </div>
+          </div>
+        )}
+        {tab === 'details' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {F('eld_provider', 'ELD Provider')}
+            {F('eld_id', 'ELD Device ID')}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Ownership</div>
+              <select value={form.ownership || 'owned'} onChange={e => setForm(f => ({ ...f, ownership: e.target.value }))} style={selectStyle}>
+                <option value="owned">Owned</option>
+                <option value="leased">Leased</option>
+                <option value="rented">Rented</option>
+              </select>
+            </div>
+            {F('purchase_date', 'Purchase Date', 'date')}
+            {F('purchase_price', 'Purchase Price ($)', 'number')}
+          </div>
+        )}
+        {tab === 'notes' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Notes</div>
+              <textarea value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>History</div>
+              <textarea value={form.history || ''} onChange={e => setForm(f => ({ ...f, history: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+            </div>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={onSave} disabled={saving || !form.unit_number}
+            className="btn primary" style={{ flex: 1, justifyContent: 'center', padding: 10 }}>
+            {saving ? 'Saving...' : isNew ? '+ Add Truck' : '▸ Save Changes'}
+          </button>
+          <button onClick={onClose} className="btn" style={{ padding: '10px 18px' }}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TrailerFormModal({ title, form, setForm, tab, setTab, drivers, isNew, onClose, onSave, saving, inputStyle, selectStyle }) {
+  const F = (key, label, type = 'text') => (
+    <div key={key}>
+      <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>{label}</div>
+      <input type={type} value={form[key] || ''} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} style={inputStyle} />
+    </div>
+  )
+  const tabs = ['general', 'details', 'notes']
+  const tabLabel = { general: 'General', details: 'Purchase', notes: 'Notes / History' }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#000000bb', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+      <div style={{ background: 'var(--panel)', border: '1px solid var(--line-strong)', padding: 24, width: 680, maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--line)', paddingBottom: 12 }}>
+          <span className="t-tiny t-up t-dim">{title}</span>
+          <button onClick={onClose} className="btn" style={{ padding: '3px 8px' }}>✕ CLOSE</button>
+        </div>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--line)' }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ padding: '7px 16px', background: 'none', border: 'none', borderBottom: tab === t ? '2px solid var(--amber)' : '2px solid transparent', color: tab === t ? 'var(--amber)' : 'var(--ink-mute)', fontFamily: 'var(--mono)', fontSize: 11, cursor: 'pointer', marginBottom: -1 }}>
+              {tabLabel[t]}
+            </button>
+          ))}
+        </div>
+        {tab === 'general' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {F('unit_number', 'Unit Number *')}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Trailer Type</div>
+              <select value={form.trailer_type || ''} onChange={e => setForm(f => ({ ...f, trailer_type: e.target.value }))} style={selectStyle}>
+                <option value="">— Select —</option>
+                <option value="dry_van">Dry Van</option>
+                <option value="reefer">Reefer</option>
+                <option value="flatbed">Flatbed</option>
+                <option value="step_deck">Step Deck</option>
+                <option value="lowboy">Lowboy</option>
+                <option value="tanker">Tanker</option>
+                <option value="curtain">Curtainside</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            {F('make', 'Make')}
+            {F('model', 'Model')}
+            {F('year', 'Year', 'number')}
+            {F('vin', 'VIN')}
+            {F('plate', 'Plate')}
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Plate State</div>
+              <select value={form.plate_state || ''} onChange={e => setForm(f => ({ ...f, plate_state: e.target.value }))} style={selectStyle}>
+                <option value="">—</option>
+                {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Assign Driver</div>
+              <select value={form.driver_id || ''} onChange={e => setForm(f => ({ ...f, driver_id: e.target.value }))} style={selectStyle}>
+                <option value="">— Unassigned —</option>
+                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Status</div>
+              <select value={form.status || 'active'} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={selectStyle}>
+                <option value="active">ACTIVE</option>
+                <option value="maintenance">SHOP</option>
+                <option value="inactive">IDLE</option>
+              </select>
+            </div>
+          </div>
+        )}
+        {tab === 'details' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Ownership</div>
+              <select value={form.ownership || 'owned'} onChange={e => setForm(f => ({ ...f, ownership: e.target.value }))} style={selectStyle}>
+                <option value="owned">Owned</option>
+                <option value="leased">Leased</option>
+                <option value="rented">Rented</option>
+              </select>
+            </div>
+            {F('purchase_date', 'Purchase Date', 'date')}
+            {F('purchase_price', 'Purchase Price ($)', 'number')}
+          </div>
+        )}
+        {tab === 'notes' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>Notes</div>
+              <textarea value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+            </div>
+            <div>
+              <div className="t-tiny t-up t-mute" style={{ marginBottom: 4 }}>History</div>
+              <textarea value={form.history || ''} onChange={e => setForm(f => ({ ...f, history: e.target.value }))} style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
+            </div>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+          <button onClick={onSave} disabled={saving || !form.unit_number}
+            className="btn primary" style={{ flex: 1, justifyContent: 'center', padding: 10 }}>
+            {saving ? 'Saving...' : isNew ? '+ Add Trailer' : '▸ Save Changes'}
+          </button>
+          <button onClick={onClose} className="btn" style={{ padding: '10px 18px' }}>Close</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function DriverFormModal({ title, form, setForm, tab, setTab, trucks, onClose, onSave, saving, inputStyle, selectStyle }) {
   const F = (key, label, type = 'text') => (

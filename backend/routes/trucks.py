@@ -13,13 +13,23 @@ router = APIRouter(prefix="/trucks", tags=["trucks"])
 class TruckCreate(BaseModel):
     unit_number: str
     plate: str
+    plate_state: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
     year: Optional[int] = None
+    vin: Optional[str] = None
+    eld_provider: Optional[str] = None
+    eld_id: Optional[str] = None
+    ownership: Optional[str] = 'owned'
+    purchase_date: Optional[str] = None
+    purchase_price: Optional[float] = None
+    history: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class TruckUpdate(BaseModel):
     plate: Optional[str] = None
+    plate_state: Optional[str] = None
     make: Optional[str] = None
     model: Optional[str] = None
     year: Optional[int] = None
@@ -27,6 +37,13 @@ class TruckUpdate(BaseModel):
     fuel_level: Optional[int] = None
     odometer: Optional[int] = None
     status: Optional[models.TruckStatus] = None
+    eld_provider: Optional[str] = None
+    eld_id: Optional[str] = None
+    ownership: Optional[str] = None
+    purchase_date: Optional[str] = None
+    purchase_price: Optional[float] = None
+    history: Optional[str] = None
+    notes: Optional[str] = None
 
 
 @router.get("/")

@@ -12,7 +12,7 @@
       → ELD donanımı da gerekiyor (Samsara, KeepTruckin vb.)
       → Donanım seçilince API entegrasyonu yapılır
 
-- [ ] Multi-tenant — birden fazla fleet şirketi desteği
+- [x] Multi-tenant — birden fazla fleet şirketi desteği ✓
 
 ## Düşük Öncelik
 

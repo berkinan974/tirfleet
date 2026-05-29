@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from backend.database import engine
 from backend import models
-from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth, partners, vendors
+from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth, partners, vendors, trailers
 from backend.auth_utils import get_current_user
 import os
 
@@ -62,7 +62,16 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE loads ADD COLUMN trailer VARCHAR",
         "ALTER TABLE loads ADD COLUMN dispatcher_name VARCHAR",
         "ALTER TABLE loads ADD COLUMN completed_at DATETIME",
-        # Partners & Vendors (new tables — created via create_all, migrations not needed)
+        # EZLoads-style truck fields
+        "ALTER TABLE trucks ADD COLUMN plate_state VARCHAR",
+        "ALTER TABLE trucks ADD COLUMN eld_provider VARCHAR",
+        "ALTER TABLE trucks ADD COLUMN eld_id VARCHAR",
+        "ALTER TABLE trucks ADD COLUMN ownership VARCHAR DEFAULT 'owned'",
+        "ALTER TABLE trucks ADD COLUMN purchase_date DATETIME",
+        "ALTER TABLE trucks ADD COLUMN purchase_price REAL",
+        "ALTER TABLE trucks ADD COLUMN history TEXT",
+        "ALTER TABLE trucks ADD COLUMN notes TEXT",
+        # Partners, Vendors, Trailers (new tables — created via create_all, migrations not needed)
     ]
     with engine.connect() as conn:
         for sql in migrations:
@@ -112,6 +121,7 @@ app.include_router(rc_parser.router,   dependencies=auth_dep)
 app.include_router(dat.router,         dependencies=auth_dep)
 app.include_router(partners.router,    dependencies=auth_dep)
 app.include_router(vendors.router,     dependencies=auth_dep)
+app.include_router(trailers.router,    dependencies=auth_dep)
 
 media_dir = os.path.abspath("./media")
 os.makedirs(media_dir, exist_ok=True)
