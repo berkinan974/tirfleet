@@ -346,3 +346,61 @@ class FuelTransaction(Base):
     driver    = relationship("Driver")
     truck     = relationship("Truck")
     fuel_card = relationship("FuelCard")
+
+
+class BillingEntry(Base):
+    __tablename__ = "billing_entries"
+
+    id                     = Column(Integer, primary_key=True, index=True)
+    company_id             = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    partner_id             = Column(Integer, ForeignKey("partners.id"), nullable=True)
+    driver_id              = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    truck_id               = Column(Integer, ForeignKey("trucks.id"), nullable=True)
+    date                   = Column(String, nullable=False)
+    entry_type             = Column(String, default="income")   # income | expense | deduction | addition
+    category               = Column(String)
+    status                 = Column(String, default="pending")  # pending | approved | paid | void
+    amount                 = Column(Float)
+    load_number            = Column(String)
+    driver_settlement      = Column(Boolean, default=False)
+    settlement_description = Column(Text)
+    notes                  = Column(Text)
+    created_at             = Column(DateTime(timezone=True), server_default=func.now())
+
+    partner = relationship("Partner")
+    driver  = relationship("Driver")
+    truck   = relationship("Truck")
+
+
+class FactoringReport(Base):
+    __tablename__ = "factoring_reports"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    partner_id = Column(Integer, ForeignKey("partners.id"), nullable=True)
+    date       = Column(String, nullable=False)
+    status     = Column(String, default="preparing")  # preparing | submitted | funded | denied
+    amount     = Column(Float)
+    notes      = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    partner = relationship("Partner")
+
+
+class DriverSettlement(Base):
+    __tablename__ = "driver_settlements"
+
+    id               = Column(Integer, primary_key=True, index=True)
+    company_id       = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    driver_id        = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    payable_to       = Column(String)
+    date             = Column(String, nullable=False)
+    date_from        = Column(String)
+    date_to          = Column(String)
+    settlement_total = Column(Float, default=0)
+    balance_due      = Column(Float, default=0)
+    status           = Column(String, default="draft")  # draft | approved | paid
+    notes            = Column(Text)
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
+
+    driver = relationship("Driver")

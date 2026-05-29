@@ -9,6 +9,8 @@ import Factoring from './pages/Factoring'
 import IFTA from './pages/IFTA'
 import Partners from './pages/Partners'
 import Fuel from './pages/Fuel'
+import Accounting from './pages/Accounting'
+import Payroll from './pages/Payroll'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }) {
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="ifta" element={<IFTA />} />
           <Route path="partners" element={<Partners />} />
           <Route path="fuel" element={<Fuel />} />
+          <Route path="accounting" element={<Accounting />} />
+          <Route path="payroll" element={<Payroll />} />
         </Route>
       </Routes>
     </AuthProvider>

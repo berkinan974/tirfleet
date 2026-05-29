@@ -85,6 +85,23 @@ export const createVendor = (data) => api.post('/vendors/', data).then(r => r.da
 export const updateVendor = (id, data) => api.patch(`/vendors/${id}`, data).then(r => r.data)
 export const deleteVendor = (id) => api.delete(`/vendors/${id}`).then(r => r.data)
 
+export const getBillingEntries = () => api.get('/accounting/billing').then(r => r.data)
+export const createBillingEntry = (data) => api.post('/accounting/billing', data).then(r => r.data)
+export const updateBillingEntry = (id, data) => api.patch(`/accounting/billing/${id}`, data).then(r => r.data)
+export const deleteBillingEntry = (id) => api.delete(`/accounting/billing/${id}`).then(r => r.data)
+
+export const getFactoringReports = () => api.get('/accounting/factoring-reports').then(r => r.data)
+export const createFactoringReport = (data) => api.post('/accounting/factoring-reports', data).then(r => r.data)
+export const updateFactoringReport = (id, data) => api.patch(`/accounting/factoring-reports/${id}`, data).then(r => r.data)
+export const deleteFactoringReport = (id) => api.delete(`/accounting/factoring-reports/${id}`).then(r => r.data)
+export const getAccountingSummary = () => api.get('/accounting/summary').then(r => r.data)
+
+export const getSettlements = () => api.get('/payroll/settlements').then(r => r.data)
+export const createSettlement = (data) => api.post('/payroll/settlements', data).then(r => r.data)
+export const updateSettlement = (id, data) => api.patch(`/payroll/settlements/${id}`, data).then(r => r.data)
+export const deleteSettlement = (id) => api.delete(`/payroll/settlements/${id}`).then(r => r.data)
+export const getOpenBalance = (params) => api.get('/payroll/open-balance', { params }).then(r => r.data)
+
 export const getFuelCards = () => api.get('/fuel/cards').then(r => r.data)
 export const createFuelCard = (data) => api.post('/fuel/cards', data).then(r => r.data)
 export const updateFuelCard = (id, data) => api.patch(`/fuel/cards/${id}`, data).then(r => r.data)
