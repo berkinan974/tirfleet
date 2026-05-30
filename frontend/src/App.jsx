@@ -14,6 +14,7 @@ import Payroll from './pages/Payroll'
 import Reports from './pages/Reports'
 import Tolls from './pages/Tolls'
 import Safety from './pages/Safety'
+import DataLibrary from './pages/DataLibrary'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }) {
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="reports" element={<Reports />} />
           <Route path="tolls" element={<Tolls />} />
           <Route path="safety" element={<Safety />} />
+          <Route path="datalibrary" element={<DataLibrary />} />
         </Route>
       </Routes>
     </AuthProvider>

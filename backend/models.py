@@ -219,6 +219,7 @@ class Partner(Base):
     email          = Column(String)
     fid_ein        = Column(String)
     mc_number      = Column(String)
+    dot_number     = Column(String)
     pay_method     = Column(String)
     credit         = Column(String)
     avg_dtp        = Column(Float)
@@ -392,6 +393,39 @@ class SafetyClaim(Base):
     driver  = relationship("Driver")
     truck   = relationship("Truck")
     trailer = relationship("Trailer")
+
+
+class FactoringCompany(Base):
+    __tablename__ = "factoring_companies"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    company_id     = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    name           = Column(String, nullable=False)
+    address        = Column(String)
+    city           = Column(String)
+    state          = Column(String)
+    zip            = Column(String)
+    phone          = Column(String)
+    website        = Column(String)
+    is_integrated  = Column(Boolean, default=False)
+    notes          = Column(Text)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class DataLibraryLocation(Base):
+    __tablename__ = "data_library_locations"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    company_id   = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    code         = Column(String, nullable=False)
+    company_name = Column(String)
+    street       = Column(String)
+    city         = Column(String)
+    state        = Column(String)
+    zip          = Column(String)
+    country      = Column(String, default="US")
+    notes        = Column(Text)
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class FuelTransaction(Base):

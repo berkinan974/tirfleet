@@ -119,6 +119,19 @@ export const createTrailer = (data) => api.post('/trailers/', data).then(r => r.
 export const updateTrailer = (id, data) => api.patch(`/trailers/${id}`, data).then(r => r.data)
 export const deleteTrailer = (id) => api.delete(`/trailers/${id}`).then(r => r.data)
 
+export const getDLBrokers = (search) => api.get('/datalibrary/brokers', { params: search ? { search } : {} }).then(r => r.data)
+export const getDLShippers = (search) => api.get('/datalibrary/shippers', { params: search ? { search } : {} }).then(r => r.data)
+
+export const getDLFactoringCompanies = () => api.get('/datalibrary/factoring-companies').then(r => r.data)
+export const createDLFactoringCompany = (data) => api.post('/datalibrary/factoring-companies', data).then(r => r.data)
+export const updateDLFactoringCompany = (id, data) => api.patch(`/datalibrary/factoring-companies/${id}`, data).then(r => r.data)
+export const deleteDLFactoringCompany = (id) => api.delete(`/datalibrary/factoring-companies/${id}`).then(r => r.data)
+
+export const getDLLocations = (search) => api.get('/datalibrary/locations', { params: search ? { search } : {} }).then(r => r.data)
+export const createDLLocation = (data) => api.post('/datalibrary/locations', data).then(r => r.data)
+export const updateDLLocation = (id, data) => api.patch(`/datalibrary/locations/${id}`, data).then(r => r.data)
+export const deleteDLLocation = (id) => api.delete(`/datalibrary/locations/${id}`).then(r => r.data)
+
 export const getSafetyClaims = () => api.get('/safety/claims').then(r => r.data)
 export const createSafetyClaim = (data) => api.post('/safety/claims', data).then(r => r.data)
 export const updateSafetyClaim = (id, data) => api.patch(`/safety/claims/${id}`, data).then(r => r.data)

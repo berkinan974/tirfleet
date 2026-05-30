@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy import text
 from backend.database import engine
 from backend import models
-from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth, partners, vendors, trailers, fuel, accounting, payroll, reports, tolls, safety
+from backend.routes import trucks, drivers, pti, loads, factoring, maintenance, documents, rc_parser, dat, auth, partners, vendors, trailers, fuel, accounting, payroll, reports, tolls, safety, datalibrary
 from backend.auth_utils import get_current_user
 import os
 
@@ -71,6 +71,7 @@ async def lifespan(app: FastAPI):
         "ALTER TABLE trucks ADD COLUMN purchase_price REAL",
         "ALTER TABLE trucks ADD COLUMN history TEXT",
         "ALTER TABLE trucks ADD COLUMN notes TEXT",
+        "ALTER TABLE partners ADD COLUMN dot_number VARCHAR",
         # Partners, Vendors, Trailers (new tables — created via create_all, migrations not needed)
     ]
     with engine.connect() as conn:
@@ -128,6 +129,7 @@ app.include_router(payroll.router,     dependencies=auth_dep)
 app.include_router(reports.router,     dependencies=auth_dep)
 app.include_router(tolls.router,       dependencies=auth_dep)
 app.include_router(safety.router,      dependencies=auth_dep)
+app.include_router(datalibrary.router, dependencies=auth_dep)
 
 media_dir = os.path.abspath("./media")
 os.makedirs(media_dir, exist_ok=True)
