@@ -141,46 +141,88 @@ def update_load(
     return load
 
 
+def _ifta_date_filter(query, year, quarter, period_type, month):
+    """Apply date range filter to a load query for IFTA."""
+    from datetime import date as _date
+    import calendar
+    quarter_months = {1: (1, 3), 2: (4, 6), 3: (7, 9), 4: (10, 12)}
+    if period_type == "month" and month:
+        _, last_day = calendar.monthrange(year, month)
+        start = datetime(year, month, 1)
+        end   = datetime(year, month, last_day, 23, 59, 59)
+        query = query.filter(
+            or_(models.Load.pickup_date == None,
+                (models.Load.pickup_date >= start) & (models.Load.pickup_date <= end))
+        )
+    elif quarter and quarter in quarter_months:
+        sm, em = quarter_months[quarter]
+        start = datetime(year, sm, 1)
+        _, last_day = __import__("calendar").monthrange(year, em)
+        end   = datetime(year, em, last_day, 23, 59, 59)
+        query = query.filter(
+            or_(models.Load.pickup_date == None,
+                (models.Load.pickup_date >= start) & (models.Load.pickup_date <= end))
+        )
+    return query
+
+
+def _extract_state(loc):
+    if not loc:
+        return None
+    m = re.search(r'\b([A-Z]{2})\b', loc.upper())
+    return m.group(1) if m else None
+
+
 @router.get("/ifta")
 def ifta_summary(
     year: Optional[int] = None,
     quarter: Optional[int] = None,
+    period_type: str = "quarter",
+    month: Optional[int] = None,
+    group_by: str = "state",
+    driver_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """State-by-state mileage summary for IFTA quarterly filing."""
-    from datetime import date
-    year = year or date.today().year
-    quarter_months = {1: (1, 3), 2: (4, 6), 3: (7, 9), 4: (10, 12)}
+    """State/driver/truck mileage summary for IFTA quarterly filing."""
+    from datetime import date as _date
+    year = year or _date.today().year
 
     query = db.query(models.Load).filter(
         models.Load.company_id == current_user.company_id,
         models.Load.miles != None,
     )
-    if quarter and quarter in quarter_months:
-        sm, em = quarter_months[quarter]
-        start = datetime(year, sm, 1)
-        end = datetime(year, em, 30, 23, 59, 59)
-        query = query.filter(
-            or_(
-                models.Load.pickup_date == None,
-                (models.Load.pickup_date >= start) & (models.Load.pickup_date <= end),
-            )
-        )
-
+    if driver_id:
+        query = query.filter(models.Load.driver_id == driver_id)
+    query = _ifta_date_filter(query, year, quarter, period_type, month)
     loads = query.all()
 
-    def extract_state(loc):
-        if not loc:
-            return None
-        m = re.search(r'\b([A-Z]{2})\b', loc.upper())
-        return m.group(1) if m else None
+    if group_by == "driver":
+        grouped: dict = {}
+        for load in loads:
+            k = load.driver.name if load.driver else "Unassigned"
+            grouped[k] = grouped.get(k, 0) + (load.miles or 0)
+        rows = sorted([{"group": k, "miles": round(v)} for k, v in grouped.items()], key=lambda x: x["miles"], reverse=True)
+        return {"year": year, "quarter": quarter, "group_by": "driver",
+                "total_miles": round(sum(v for v in grouped.values())),
+                "loads_count": len(loads), "rows": rows}
 
+    if group_by == "truck":
+        grouped = {}
+        for load in loads:
+            k = load.truck.unit_number if load.truck else "No Truck"
+            grouped[k] = grouped.get(k, 0) + (load.miles or 0)
+        rows = sorted([{"group": k, "miles": round(v)} for k, v in grouped.items()], key=lambda x: x["miles"], reverse=True)
+        return {"year": year, "quarter": quarter, "group_by": "truck",
+                "total_miles": round(sum(v for v in grouped.values())),
+                "loads_count": len(loads), "rows": rows}
+
+    # group_by == "state" (default)
     state_miles: dict[str, float] = {}
     for load in loads:
         miles = load.miles or 0
-        o = extract_state(load.origin)
-        d = extract_state(load.destination)
+        o = _extract_state(load.origin) or _extract_state(load.pickup_state)
+        d = _extract_state(load.destination) or _extract_state(load.delivery_state)
         if o:
             state_miles[o] = state_miles.get(o, 0) + miles / 2
         if d:
@@ -192,12 +234,98 @@ def ifta_summary(
         key=lambda x: x["miles"], reverse=True,
     )
     return {
-        "year": year,
-        "quarter": quarter,
-        "total_miles": total,
-        "loads_count": len(loads),
+        "year": year, "quarter": quarter, "group_by": "state",
+        "total_miles": total, "loads_count": len(loads),
         "states": states,
         "note": "Miles estimated 50/50 between origin and destination states.",
+    }
+
+
+@router.get("/ifta/fuel-by-state")
+def ifta_fuel_by_state(
+    year: Optional[int] = None,
+    quarter: Optional[int] = None,
+    period_type: str = "quarter",
+    month: Optional[int] = None,
+    driver_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Miles + fuel gallons per state for IFTA filing."""
+    from datetime import date as _date
+    import calendar
+    year = year or _date.today().year
+    quarter_months = {1: (1, 3), 2: (4, 6), 3: (7, 9), 4: (10, 12)}
+
+    # Load mileage by state
+    load_q = db.query(models.Load).filter(
+        models.Load.company_id == current_user.company_id,
+        models.Load.miles != None,
+    )
+    if driver_id:
+        load_q = load_q.filter(models.Load.driver_id == driver_id)
+    load_q = _ifta_date_filter(load_q, year, quarter, period_type, month)
+    loads = load_q.all()
+
+    state_miles: dict[str, float] = {}
+    for load in loads:
+        miles = load.miles or 0
+        o = _extract_state(load.origin) or _extract_state(load.pickup_state)
+        d = _extract_state(load.destination) or _extract_state(load.delivery_state)
+        if o: state_miles[o] = state_miles.get(o, 0) + miles / 2
+        if d: state_miles[d] = state_miles.get(d, 0) + miles / 2
+
+    # Fuel gallons by state (from fuel transactions)
+    if period_type == "month" and month:
+        _, last_day = calendar.monthrange(year, month)
+        d_from = f"{year}-{month:02d}-01"
+        d_to   = f"{year}-{month:02d}-{last_day:02d}"
+    elif quarter and quarter in quarter_months:
+        sm, em = quarter_months[quarter]
+        _, last_day = calendar.monthrange(year, em)
+        d_from = f"{year}-{sm:02d}-01"
+        d_to   = f"{year}-{em:02d}-{last_day:02d}"
+    else:
+        d_from, d_to = f"{year}-01-01", f"{year}-12-31"
+
+    fuel_q = db.query(models.FuelTransaction).filter(
+        models.FuelTransaction.company_id == current_user.company_id,
+        models.FuelTransaction.include_in_ifta == True,
+        models.FuelTransaction.date >= d_from,
+        models.FuelTransaction.date <= d_to,
+    )
+    if driver_id:
+        fuel_q = fuel_q.filter(models.FuelTransaction.driver_id == driver_id)
+    fuel_txs = fuel_q.all()
+
+    state_fuel: dict[str, dict] = {}
+    for tx in fuel_txs:
+        st = (tx.state or "").upper().strip()
+        if not st: continue
+        if st not in state_fuel:
+            state_fuel[st] = {"gallons": 0.0, "amount": 0.0}
+        state_fuel[st]["gallons"] += tx.gallons or 0
+        state_fuel[st]["amount"]  += tx.amount  or 0
+
+    all_states = set(state_miles.keys()) | set(state_fuel.keys())
+    rows = []
+    for st in sorted(all_states):
+        fuel = state_fuel.get(st, {})
+        rows.append({
+            "state": st,
+            "miles": round(state_miles.get(st, 0)),
+            "gallons": round(fuel.get("gallons", 0), 3),
+            "fuel_amount": round(fuel.get("amount", 0), 2),
+        })
+    rows.sort(key=lambda x: x["miles"], reverse=True)
+
+    return {
+        "year": year, "quarter": quarter,
+        "total_miles": round(sum(state_miles.values())),
+        "total_gallons": round(sum(f["gallons"] for f in state_fuel.values()), 3),
+        "loads_count": len(loads),
+        "fuel_tx_count": len(fuel_txs),
+        "rows": rows,
     }
 
 

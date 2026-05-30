@@ -44,7 +44,8 @@ export const getLoads = (status, search) => {
 export const createLoad = (data) => api.post('/loads/', data).then(r => r.data)
 export const updateLoad = (id, data) => api.patch(`/loads/${id}`, data).then(r => r.data)
 export const getLoadSummary = () => api.get('/loads/summary').then(r => r.data)
-export const getIftaSummary = (year, quarter) => api.get('/loads/ifta', { params: { year, quarter } }).then(r => r.data)
+export const getIftaSummary = (params) => api.get('/loads/ifta', { params }).then(r => r.data)
+export const getIftaFuelByState = (params) => api.get('/loads/ifta/fuel-by-state', { params }).then(r => r.data)
 
 export const nudgePti = () => api.post('/pti/nudge').then(r => r.data)
 export const broadcastMessage = (message) => api.post('/drivers/broadcast', { message }).then(r => r.data)
