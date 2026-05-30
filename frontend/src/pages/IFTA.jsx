@@ -108,7 +108,7 @@ export default function IFTA() {
   // KY/NM/OR/NY/CT custom rates
   const [rates, setRates] = useState({ KY: '', NM: '', OR: '', NY: '', CT: '' })
 
-  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: () => import('../api').then(m => m.getDrivers()) })
+  const { data: drivers = [] } = useQuery({ queryKey: ['drivers'], queryFn: getDrivers })
 
   const iftaParams = { year, quarter: periodType === 'quarter' ? quarter : undefined, period_type: periodType, month: periodType === 'month' ? month : undefined, group_by: groupBy, driver_id: driverId || undefined }
   const fuelParams = { year, quarter: periodType === 'quarter' ? quarter : undefined, period_type: periodType, month: periodType === 'month' ? month : undefined, driver_id: driverId || undefined }
